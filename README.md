@@ -15,9 +15,11 @@ Features:
 - Test mode and God mode
 
 Work in progress:
-- General bug fixing
-- Game balancing
-- Adding new weapons (not that easy!)
+- Making it more playable! lol
+- Adding new fun weapons (not that easy but a main objective!)
+- Better sound effects, hopefully
+- Balancing
+
 
 **To install:**
 Simply download the file zombieGBT.html and run it in your favorite browser!
