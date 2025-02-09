@@ -10,9 +10,14 @@ Features:
 - Guns: Pistol - Machine Gun - Laser - Shotgun - Flamethrower - Crossbow
 - Quick reload (pistol)
 - Headshots and Crawling zombie effect
-- Shop for upgrades
+- Shop for upgrades and momey system
 - Pick up items and powers (speed, slow motion, guns, shield)
 - Test mode and God mode
+
+Work in progress:
+- General bug fixing
+- Game balancing
+- Adding new weapons (not that easy!)
 
 **To install:**
 Simply download the file zombieGBT.html and run it in your favorite browser!
