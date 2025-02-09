@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
   <title>Stick Man Zombie Shooter - Enhanced with Audio, Currency, Shop, Test Mode & Crossbow</title>
   <style>
@@ -20,7 +20,6 @@
       cursor: none;
       /* Hide the default cursor */
     }
-
 
     /* Overlay styling for various menus */
     #instructions,
@@ -43,19 +42,16 @@
     }
 
     #instructions {
-  position: absolute;
-  top: 10px;             /* Positions the overlay near the top */
-  left: 50%;             /* Centers horizontally */
-  transform: translateX(-50%);
-  padding: 20px;
-  font-size: 14px;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 10px;
-  text-align: left;      /* Ensures text is aligned left */
-}
-
-
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 20px;
+      font-size: 14px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 10px;
+      text-align: left;
+    }
 
     #instructions button {
       margin-top: 5px;
@@ -114,7 +110,6 @@
     }
   </style>
 </head>
-
 <body>
   <canvas id="gameCanvas"></canvas>
 
@@ -208,15 +203,19 @@
     });
 
     (function () {
+      // Setup canvas and context
       const canvas = document.getElementById('gameCanvas');
       const ctx = canvas.getContext('2d');
       let width = canvas.width = window.innerWidth;
       let height = canvas.height = window.innerHeight;
-
       window.addEventListener('resize', () => {
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
       });
+
+      // Detect mobile devices and define camera for mobile (walking world)
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      let camera = { x: 0, y: 0 };
 
       // ---------------------
       // AUDIO SETUP (Web Audio API)
@@ -310,7 +309,6 @@
         oscillator.stop(audioCtx.currentTime + 0.1);
       }
 
-      // New Laser Sound
       function playLaserSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -324,10 +322,8 @@
         oscillator.stop(audioCtx.currentTime + 0.05);
       }
 
-
       function playReloadStartSound() {
         const now = audioCtx.currentTime;
-        // Harsh "shook" part using a sawtooth wave:
         let osc1 = audioCtx.createOscillator();
         let gain1 = audioCtx.createGain();
         osc1.type = "sawtooth";
@@ -339,7 +335,6 @@
         osc1.start(now);
         osc1.stop(now + 0.08);
 
-        // Harsh "sheek" part using a square wave:
         let osc2 = audioCtx.createOscillator();
         let gain2 = audioCtx.createGain();
         osc2.type = "square";
@@ -356,7 +351,7 @@
         const now = audioCtx.currentTime;
         let osc = audioCtx.createOscillator();
         let gain = audioCtx.createGain();
-        osc.type = "sawtooth";  // using sawtooth for a grittier, harsher tone
+        osc.type = "sawtooth";
         osc.frequency.setValueAtTime(200, now);
         gain.gain.setValueAtTime(0.5, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
@@ -372,7 +367,7 @@
       let zombieKills = 0;
       let gameStartTime = Date.now();
       let totalPausedTime = 0;   // Accumulates total pause duration
-let pauseStartTime = 0;    // Records when a pause starts
+      let pauseStartTime = 0;    // Records when a pause starts
 
       let gameOver = false;
       // Game states: "menu", "playing", "paused", "shop"
@@ -395,7 +390,7 @@ let pauseStartTime = 0;    // Records when a pause starts
       let shopOpen = false;
       let shopPriceMultiplier = 1.0; // Increases each shop round.
 
-      // --- Freeze Effect: When shop (or test menu) is open, game simulation freezes.
+      // --- Freeze Effect ---
       let freezeEndTime = 0;
 
       // ---------------------
@@ -448,15 +443,14 @@ let pauseStartTime = 0;    // Records when a pause starts
       let bullets = [];
       let zombies = [];
       let powerUps = [];
-      let laserBeams = [];  // Array to hold active laser beam effects.
+      let laserBeams = [];  // Active laser beam effects.
 
-      // Include "laser" as a power‑up type.
       const powerUpTypes = ["shield", "machineGun", "shotgun", "speed", "bomb", "extraAmmo", "slowMotion", "laser"];
       const powerUpColors = { shield: "blue", machineGun: "darkgray", shotgun: "saddlebrown", speed: "orange", bomb: "black", extraAmmo: "gold", slowMotion: "purple", laser: "cyan" };
       const powerUpNames = { shield: "Shield", machineGun: "Machine Gun", shotgun: "Shotgun", speed: "Speed", bomb: "Bomb", extraAmmo: "Extra Ammo", slowMotion: "Slow Motion", laser: "Laser Rifle" };
 
       // ---------------------
-      // SHOP ITEMS (and now also used for test mode)
+      // SHOP ITEMS (and Test Mode)
       // ---------------------
       const availableShopItems = [
         { id: "extraHealth", name: "Extra Health", description: "Gain an extra life.", price: 0, effect: function () { player.lives++; } },
@@ -479,44 +473,99 @@ let pauseStartTime = 0;    // Records when a pause starts
       let mouse = { x: width / 2, y: height / 2 };
 
       document.addEventListener('keydown', (e) => {
-  keys[e.key] = true;
-  if (e.key === "r" || e.key === "R") reloadGun();
-  if (e.key === "Escape") {
-    if (gameState === "playing") {
-      gameState = "paused";
-      pauseStartTime = Date.now();  // Record when pause starts
-      document.getElementById("pauseMenuOverlay").style.display = "flex";
-      document.getElementById("instructions").style.display = "block";
-    } else if (gameState === "paused") {
-      gameState = "playing";
-      totalPausedTime += (Date.now() - pauseStartTime);  // Add the pause duration
-      pauseStartTime = 0;
-      document.getElementById("pauseMenuOverlay").style.display = "none";
-      document.getElementById("instructions").style.display = "none";
-    }
-  }
-});
-
-
+        keys[e.key] = true;
+        if (e.key === "r" || e.key === "R") reloadGun();
+        if (e.key === "Escape") {
+          if (gameState === "playing") {
+            gameState = "paused";
+            pauseStartTime = Date.now();
+            document.getElementById("pauseMenuOverlay").style.display = "flex";
+            document.getElementById("instructions").style.display = "block";
+          } else if (gameState === "paused") {
+            gameState = "playing";
+            totalPausedTime += (Date.now() - pauseStartTime);
+            pauseStartTime = 0;
+            document.getElementById("pauseMenuOverlay").style.display = "none";
+            document.getElementById("instructions").style.display = "none";
+          }
+        }
+      });
       document.addEventListener('keyup', (e) => { keys[e.key] = false; });
       canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
       canvas.addEventListener('mousedown', () => {
         mouseDown = true;
-        // If using the pistol and currently reloading, try to trigger quick reload.
         if (player.weapon === "pistol" && player.reloading) {
           attemptQuickReload();
         } else if (player.weapon !== "machineGun" && player.weapon !== "flamethrower" && player.weapon !== "laser") {
           shootWeapon();
         }
       });
-
       canvas.addEventListener('mouseup', () => { mouseDown = false; });
 
-      document.getElementById('restartButton').addEventListener('click', () => { location.reload(); });
+      // --- MOBILE TOUCH SUPPORT ---
+      let leftTouchId = null;
+      let rightTouchId = null;
+      let leftTouchStart = null;
+      let touchMovement = { dx: 0, dy: 0 };
+
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          let touch = e.changedTouches[i];
+          if (touch.clientX < window.innerWidth / 2 && leftTouchId === null) {
+            leftTouchId = touch.identifier;
+            leftTouchStart = { x: touch.clientX, y: touch.clientY };
+          } else if (touch.clientX >= window.innerWidth / 2 && rightTouchId === null) {
+            rightTouchId = touch.identifier;
+            mouse.x = touch.clientX;
+            mouse.y = touch.clientY;
+            mouseDown = true;
+          }
+        }
+      }, false);
+
+      canvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          let touch = e.changedTouches[i];
+          if (touch.identifier === leftTouchId) {
+            let dx = touch.clientX - leftTouchStart.x;
+            let dy = touch.clientY - leftTouchStart.y;
+            let maxDist = 50;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > maxDist) {
+              dx = dx * maxDist / dist;
+              dy = dy * maxDist / dist;
+            }
+            touchMovement.dx = (dx / maxDist) * player.baseSpeed;
+            touchMovement.dy = (dy / maxDist) * player.baseSpeed;
+          } else if (touch.identifier === rightTouchId) {
+            mouse.x = touch.clientX;
+            mouse.y = touch.clientY;
+          }
+        }
+      }, false);
+
+      canvas.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          let touch = e.changedTouches[i];
+          if (touch.identifier === leftTouchId) {
+            leftTouchId = null;
+            leftTouchStart = null;
+            touchMovement.dx = 0;
+            touchMovement.dy = 0;
+          } else if (touch.identifier === rightTouchId) {
+            rightTouchId = null;
+            mouseDown = false;
+          }
+        }
+      }, false);
 
       // ---------------------
       // UI Overlay Event Listeners
       // ---------------------
+      document.getElementById('restartButton').addEventListener('click', () => { location.reload(); });
       document.getElementById("startGameButton").addEventListener("click", () => {
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
@@ -524,8 +573,7 @@ let pauseStartTime = 0;    // Records when a pause starts
         gameState = "playing";
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "none";
-        document.getElementById("instructions").style.display = "none";  // hide controls overlay when game starts
-
+        document.getElementById("instructions").style.display = "none";
         if (gameMode === "test") {
           document.getElementById("weaponSelectionOverlay").style.display = "block";
           document.getElementById("weaponSelectButton").style.display = "block";
@@ -540,7 +588,6 @@ let pauseStartTime = 0;    // Records when a pause starts
         window.close();
         alert("Exiting game (simulate).");
       });
-
       document.getElementById("normalModeButton").addEventListener("click", () => {
         gameMode = "normal";
         document.getElementById("modesMenuOverlay").style.display = "none";
@@ -566,16 +613,13 @@ let pauseStartTime = 0;    // Records when a pause starts
         document.getElementById("modesMenuOverlay").style.display = "none";
         document.getElementById("mainMenuOverlay").style.display = "block";
       });
-
       document.getElementById("resumeGameButton").addEventListener("click", () => {
-  gameState = "playing";
-  totalPausedTime += (Date.now() - pauseStartTime);
-  pauseStartTime = 0;
-  document.getElementById("pauseMenuOverlay").style.display = "none";
-  document.getElementById("instructions").style.display = "none";
-});
-
-
+        gameState = "playing";
+        totalPausedTime += (Date.now() - pauseStartTime);
+        pauseStartTime = 0;
+        document.getElementById("pauseMenuOverlay").style.display = "none";
+        document.getElementById("instructions").style.display = "none";
+      });
       document.getElementById("toggleGodModeButton").addEventListener("click", () => {
         gameMode = (gameMode === "god") ? "normal" : "god";
         if (gameMode === "god") {
@@ -588,7 +632,6 @@ let pauseStartTime = 0;    // Records when a pause starts
         document.getElementById("weaponSelectButton").style.display = (gameMode === "test") ? "block" : "none";
         document.getElementById("testModeMenuButton").style.display = (gameMode === "test") ? "block" : "none";
       });
-
       document.getElementById("saveGameButton").addEventListener("click", saveGame);
       document.getElementById("loadGameButton").addEventListener("click", loadGame);
       document.getElementById("mainMenuButton").addEventListener("click", () => { location.reload(); });
@@ -599,14 +642,10 @@ let pauseStartTime = 0;    // Records when a pause starts
       document.getElementById("weaponSelectButton").addEventListener("click", () => {
         document.getElementById("weaponSelectionOverlay").style.display = "block";
       });
-
-      // Test Mode Menu button (only visible in test mode)
       document.getElementById("testModeMenuButton").addEventListener("click", openTestModeMenu);
-
-      // Add event listener to close the Shop overlay when the close button is clicked.
       document.getElementById("closeShopButton").addEventListener("click", closeShop);
 
-      // Weapon Selection Overlay (for Test Mode)
+      // Weapon Selection Overlay (Test Mode)
       const weaponOptions = document.querySelectorAll(".weaponOption");
       weaponOptions.forEach(option => {
         option.addEventListener("click", (e) => {
@@ -619,12 +658,9 @@ let pauseStartTime = 0;    // Records when a pause starts
           } else if (selectedWeapon === "flamethrower") {
             player.activeGun = { type: "flamethrower", fuel: 100 };
           } else if (selectedWeapon === "laser") {
-            // When selecting laser, reset its ammo capacity
             player.weapon = "laser";
             player.laserAmmo = 100;
-            // Continuous firing for laser is now handled in update()
           } else {
-            // For pistol and crossbow, no activeGun object is used.
             player.activeGun = { type: null, ammo: 0 };
           }
           document.getElementById("weaponSelectionOverlay").style.display = "none";
@@ -683,7 +719,6 @@ let pauseStartTime = 0;    // Records when a pause starts
         gameState = "shop"; // Freeze simulation while shop is open.
         let items = availableShopItems.slice();
         items.sort(() => Math.random() - 0.5);
-        // For shop, pick 3 random items.
         items = items.slice(0, 3);
         items.forEach(item => {
           let base;
@@ -779,7 +814,9 @@ let pauseStartTime = 0;    // Records when a pause starts
       function updateParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
           let p = particles[i];
-          p.x += p.vx; p.y += p.vy; p.life--;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life--;
           if (p.life <= 0) particles.splice(i, 1);
         }
       }
@@ -910,7 +947,6 @@ let pauseStartTime = 0;    // Records when a pause starts
       const baseMachineGunFireInterval = 100;
 
       function activatePowerUp(type) {
-        // If a machine gun or shotgun power-up is picked up, switch weapon (even if currently using laser)
         if (type === "machineGun" || type === "shotgun") {
           if (type === "machineGun") {
             player.activeGun = { type: "machineGun", ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 50 };
@@ -951,7 +987,6 @@ let pauseStartTime = 0;    // Records when a pause starts
           case "slowMotion":
             player.powerUps.slowMotion = Date.now() + 5000;
             break;
-          // Laser pickup: When collected, switch the weapon to laser and refill its ammo.
           case "laser":
             player.weapon = "laser";
             player.laserAmmo = 100;
@@ -963,32 +998,30 @@ let pauseStartTime = 0;    // Records when a pause starts
 
       function shootWeapon() {
         if (gameOver || gameState !== "playing") return;
-        // Laser is now handled continuously in update()
         if (player.weapon === "laser") return;
         let bulletSpeed = 15;
         let angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         if (player.weapon === "pistol") {
-  if (player.reloading) return;
-  // If not in god/test mode and no ammo remains, trigger a reload
-  if (!(gameMode === "god" || gameMode === "test") && player.ammo <= 0) {
-       reloadGun();
-       return;
-  }
-  let bullet = { 
-    x: player.x, 
-    y: player.y, 
-    dx: Math.cos(angle) * bulletSpeed, 
-    dy: Math.sin(angle) * bulletSpeed, 
-    spawnTime: Date.now(), 
-    source: "pistol" 
-  };
-  bullets.push(bullet);
-  if (!(gameMode === "god" || gameMode === "test")) {
-       player.ammo--;
-  }
-  playGunshotSound();
-  player.lastShotTime = Date.now();
-} else if (player.weapon === "machineGun") {
+          if (player.reloading) return;
+          if (!(gameMode === "god" || gameMode === "test") && player.ammo <= 0) {
+            reloadGun();
+            return;
+          }
+          let bullet = {
+            x: player.x,
+            y: player.y,
+            dx: Math.cos(angle) * bulletSpeed,
+            dy: Math.sin(angle) * bulletSpeed,
+            spawnTime: Date.now(),
+            source: "pistol"
+          };
+          bullets.push(bullet);
+          if (!(gameMode === "god" || gameMode === "test")) {
+            player.ammo--;
+          }
+          playGunshotSound();
+          player.lastShotTime = Date.now();
+        } else if (player.weapon === "machineGun") {
           if (!player.activeGun || player.activeGun.ammo <= 0) {
             player.activeGun = { type: null, ammo: 0 };
             player.weapon = "pistol";
@@ -1016,9 +1049,7 @@ let pauseStartTime = 0;    // Records when a pause starts
           playGunshotSound();
           if (player.activeGun.ammo <= 0) { player.activeGun = { type: null, ammo: 0 }; player.weapon = "pistol"; }
           player.lastShotTime = Date.now();
-        }
-        // New Crossbow branch
-        else if (player.weapon === "crossbow") {
+        } else if (player.weapon === "crossbow") {
           if (player.crossbowReloading) return;
           if (player.crossbowAmmo <= 0) return;
           let bulletSpeed = 20;
@@ -1039,39 +1070,30 @@ let pauseStartTime = 0;    // Records when a pause starts
         if (!player.reloading && player.weapon === "pistol" && player.ammo < player.magazine) {
           player.reloading = true;
           player.reloadStart = Date.now();
-          // Initialize the reload duration to the base reload time.
-          player.reloadDuration = player.reloadTime;  // e.g., 2000 ms
-          // No penalty is active at the start.
+          player.reloadDuration = player.reloadTime;
           player.penaltyActive = false;
           autoReloadScheduled = false;
           playReloadStartSound();
         }
       }
 
-
-
-
       function attemptQuickReload() {
         if (!player.reloading) return;
-
         let reloadElapsed = Date.now() - player.reloadStart;
         let progress = reloadElapsed / player.reloadDuration;
         const QUICK_RELOAD_ZONE_START = 0.3;
         const QUICK_RELOAD_ZONE_END = 0.4;
-
         if (player.penaltyActive) {
           console.log("Reload penalty active, wait for reload to complete.");
           return;
         }
-
         if (progress >= QUICK_RELOAD_ZONE_START && progress <= QUICK_RELOAD_ZONE_END) {
           player.ammo = player.magazine;
           player.reloading = false;
           player.penaltyActive = false;
-          playReloadEndSound();  // <-- Added here
+          playReloadEndSound();
           console.log("Quick Reload Successful!");
         } else {
-          // (Your penalty code remains unchanged)
           if (progress < QUICK_RELOAD_ZONE_START) {
             console.log("Quick Reload Failed: Too early. Penalty applied.");
             player.reloadStart = Date.now();
@@ -1086,18 +1108,12 @@ let pauseStartTime = 0;    // Records when a pause starts
         }
       }
 
-
-
-
-
-
       // ---------------------
       // ZOMBIE SPAWNING
       // ---------------------
       setInterval(spawnZombie, 1000);
       function spawnZombie() {
         if (gameOver || gameState !== "playing") return;
-        if (gameOver) return;
         let side = Math.floor(Math.random() * 4);
         let x, y;
         const offset = 30;
@@ -1111,8 +1127,8 @@ let pauseStartTime = 0;    // Records when a pause starts
           speed: zombieSpeed,
           radius: 20,
           dying: false,
-          deathTimer: 30,
-          initialDeathTimer: 30,
+          deathTimer: 60,
+          initialDeathTimer: 60,
           crawling: false,
           walkCycle: Math.random() * Math.PI * 2,
           health: 1,
@@ -1130,7 +1146,6 @@ let pauseStartTime = 0;    // Records when a pause starts
       setInterval(spawnPowerUp, 10000);
       function spawnPowerUp() {
         if (gameOver || gameState !== "playing") return;
-        if (gameOver) return;
         const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
         const margin = 50;
         const x = margin + Math.random() * (width - 2 * margin);
@@ -1206,6 +1221,15 @@ let pauseStartTime = 0;    // Records when a pause starts
       function update() {
         if (gameState !== "playing") return;
 
+        // Update camera: on mobile, center on player; desktop remains fixed.
+        if (isMobile) {
+          camera.x = player.x - window.innerWidth / 2;
+          camera.y = player.y - window.innerHeight / 2;
+        } else {
+          camera.x = 0;
+          camera.y = 0;
+        }
+
         if (player.healthRegenRate > 0 && Date.now() - player.lastRegenTime >= 5000) {
           player.lives += player.healthRegenRate;
           player.lastRegenTime = Date.now();
@@ -1233,8 +1257,16 @@ let pauseStartTime = 0;    // Records when a pause starts
         if (keys['s'] || keys['ArrowDown']) { player.y += player.speed; moving = true; }
         if (keys['a'] || keys['ArrowLeft']) { player.x -= player.speed; moving = true; }
         if (keys['d'] || keys['ArrowRight']) { player.x += player.speed; moving = true; }
+        // Mobile Touch Movement Update
+        if (touchMovement.dx !== 0 || touchMovement.dy !== 0) {
+          player.x += touchMovement.dx;
+          player.y += touchMovement.dy;
+          moving = true;
+        }
+
         player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         if (moving) player.walkCycle += 0.15; else player.walkCycle = 0;
+
         if (player.recoil > 0) player.recoil = Math.max(player.recoil - 1, 0);
         if (player.reloading && player.weapon === "pistol") {
           let reloadElapsed = Date.now() - player.reloadStart;
@@ -1242,7 +1274,7 @@ let pauseStartTime = 0;    // Records when a pause starts
             player.ammo = player.magazine;
             player.reloading = false;
             player.penaltyActive = false;
-            playReloadEndSound();  // <-- Ensure it's called on normal completion
+            playReloadEndSound();
           }
         }
 
@@ -1258,12 +1290,11 @@ let pauseStartTime = 0;    // Records when a pause starts
           }
         }
 
-        // Machine gun rapid fire.
+        // Weapon-specific firing
         if (player.weapon === "machineGun" && mouseDown) {
           let fireInterval = baseMachineGunFireInterval / (1 + player.rapidFireLevel * 0.2);
           if (Date.now() - player.lastShotTime >= fireInterval) shootWeapon();
         }
-        // Flamethrower.
         if (player.weapon === "flamethrower" && mouseDown) {
           if (player.activeGun && player.activeGun.fuel > 0) {
             player.activeGun.fuel -= 0.5;
@@ -1277,11 +1308,11 @@ let pauseStartTime = 0;    // Records when a pause starts
             player.weapon = "pistol";
             stopFlameSound();
           }
-        } else { if (player.weapon !== "flamethrower" || !mouseDown) stopFlameSound(); }
-
-        // Laser continuous fire.
+        } else {
+          if (player.weapon !== "flamethrower" || !mouseDown) stopFlameSound();
+        }
         if (player.weapon === "laser" && mouseDown) {
-          let laserFireInterval = 100; // fire every 100ms
+          let laserFireInterval = 100;
           if (Date.now() - player.lastShotTime >= laserFireInterval) {
             if (player.laserAmmo > 0) {
               player.laserAmmo--;
@@ -1310,7 +1341,6 @@ let pauseStartTime = 0;    // Records when a pause starts
                 }
               }
             } else {
-              // Switch to pistol if laser ammo is depleted.
               player.weapon = "pistol";
             }
           }
@@ -1318,7 +1348,8 @@ let pauseStartTime = 0;    // Records when a pause starts
 
         for (let i = bullets.length - 1; i >= 0; i--) {
           let b = bullets[i];
-          b.x += b.dx; b.y += b.dy;
+          b.x += b.dx;
+          b.y += b.dy;
           if (b.source !== "flamethrower")
             spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, "rgba(0,0,0,ALPHA)");
           if (b.source === "flamethrower" && distance(b.startX, b.startY, b.x, b.y) > 100) { bullets.splice(i, 1); continue; }
@@ -1448,7 +1479,6 @@ let pauseStartTime = 0;    // Records when a pause starts
                   break;
                 }
                 else if (b.source === "laser") {
-                  // Legacy branch (unused since laser now uses beam collision)
                   let baseDamage = 8;
                   if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
                     baseDamage *= 1.5;
@@ -1555,7 +1585,6 @@ let pauseStartTime = 0;    // Records when a pause starts
         updateCurrencyDrops();
         updateParticles();
 
-        // Update laser beams: Remove beams that have expired.
         for (let i = laserBeams.length - 1; i >= 0; i--) {
           if (Date.now() - laserBeams[i].spawnTime > laserBeams[i].duration) {
             laserBeams.splice(i, 1);
@@ -1572,19 +1601,16 @@ let pauseStartTime = 0;    // Records when a pause starts
       // ---------------------
       function draw() {
         ctx.clearRect(0, 0, width, height);
+
+        // Begin Camera Transform (for mobile)
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        // Draw world objects in world coordinates
         drawPowerUps();
-        if (gameMode === "god") {
-          ctx.save();
-          ctx.shadowBlur = 20;
-          ctx.shadowColor = "yellow";
-          ctx.beginPath();
-          ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 255, 0, 0.2)";
-          ctx.fill();
-          ctx.restore();
-        }
         drawPlayer();
         for (let b of bullets) {
+          // Example bullet drawing:
           if (b.source === "flamethrower") continue;
           let bulletAngle = Math.atan2(b.dy, b.dx);
           let pulse = 1 + 0.5 * Math.abs(Math.sin((Date.now() - b.spawnTime) * 0.02));
@@ -1614,8 +1640,6 @@ let pauseStartTime = 0;    // Records when a pause starts
           ctx.restore();
         }
         drawCurrencyDrops();
-
-        // Draw active laser beams.
         for (let beam of laserBeams) {
           let beamLength = Math.sqrt(width * width + height * height);
           let endX = beam.x + Math.cos(beam.angle) * beamLength;
@@ -1632,6 +1656,10 @@ let pauseStartTime = 0;    // Records when a pause starts
           ctx.restore();
         }
 
+        // End camera transform
+        ctx.restore();
+
+        // Draw HUD and cursor (in screen coordinates)
         drawHUD();
         ctx.save();
         ctx.beginPath();
@@ -1730,24 +1758,16 @@ let pauseStartTime = 0;    // Records when a pause starts
           let barHeight = 8;
           let barX = player.x - barWidth / 2;
           let barY = player.y - 40;
-
-          // Draw the border of the reload bar.
           ctx.strokeStyle = "black";
           ctx.strokeRect(barX, barY, barWidth, barHeight);
-
-          // Use grey if a penalty is active; otherwise, use green.
           ctx.fillStyle = player.penaltyActive ? "grey" : "green";
           ctx.fillRect(barX, barY, barWidth * progress, barHeight);
-
-          // Draw the quick reload target zone (a black rectangle) within the reload bar.
           const QUICK_RELOAD_ZONE_START = 0.3;
           const QUICK_RELOAD_ZONE_END = 0.4;
           let targetX = barX + barWidth * QUICK_RELOAD_ZONE_START;
           let targetWidth = barWidth * (QUICK_RELOAD_ZONE_END - QUICK_RELOAD_ZONE_START);
           ctx.fillStyle = "black";
           ctx.fillRect(targetX, barY, targetWidth, barHeight);
-
-          // Draw the moving pointer line (in red) at the current progress.
           let pointerX = barX + barWidth * progress;
           ctx.strokeStyle = "red";
           ctx.beginPath();
@@ -1755,10 +1775,6 @@ let pauseStartTime = 0;    // Records when a pause starts
           ctx.lineTo(pointerX, barY + barHeight);
           ctx.stroke();
         }
-
-
-
-
         if (player.weapon === "crossbow" && player.crossbowReloading) {
           let reloadElapsed = Date.now() - player.crossbowReloadStart;
           let progress = Math.min(reloadElapsed / player.crossbowReloadTime, 1);
@@ -1886,5 +1902,4 @@ let pauseStartTime = 0;    // Records when a pause starts
     })();
   </script>
 </body>
-
 </html>
