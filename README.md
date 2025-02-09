@@ -1,3 +1,6 @@
+Playable link
+https://ulizel.github.io/zombiegbt/
+
 # zombiegbt
 A top down rogue zombie shooter game made using Chatgbt and HTML5 in a single file.
 
