@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stick Man Zombie Shooter</title>
+  <style>
+    /* Remove margins and ensure the canvas fills the screen */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #222;
+    }
+    canvas {
+      display: block;
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    (function() {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      let width = canvas.width = window.innerWidth;
+      let height = canvas.height = window.innerHeight;
+
+      // Adjust canvas size if window is resized.
+      window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      });
+
+      // Player object: starts roughly in the center.
+      let player = {
+        x: width / 2,
+        y: height / 2,
+        speed: 3,
+        angle: 0, // angle to the mouse pointer
+        radius: 20
+      };
+
+      // Arrays to hold bullets and zombies.
+      let bullets = [];
+      let zombies = [];
+
+      // Object to track pressed keys.
+      let keys = {};
+
+      // Mouse position starts at the center.
+      let mouse = { x: width / 2, y: height / 2 };
+
+      // Listen for keyboard events.
+      document.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+      });
+      document.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+      });
+
+      // Update mouse coordinates when moved.
+      canvas.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      });
+
+      // Shoot a bullet on mouse down.
+      canvas.addEventListener('mousedown', shootBullet);
+
+      // Function to create a bullet aimed at the current mouse position.
+      function shootBullet() {
+        // Determine the direction from the player to the mouse.
+        const angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+        const bulletSpeed = 8;
+        const bullet = {
+          x: player.x,
+          y: player.y,
+          dx: Math.cos(angle) * bulletSpeed,
+          dy: Math.sin(angle) * bulletSpeed,
+          radius: 5
+        };
+        bullets.push(bullet);
+      }
+
+      // Spawn a new zombie at a random edge every second.
+      setInterval(spawnZombie, 1000);
+      function spawnZombie() {
+        let side = Math.floor(Math.random() * 4);
+        let x, y;
+        const offset = 30; // spawn off-screen
+        if (side === 0) {            // Top
+          x = Math.random() * width;
+          y = -offset;
+        } else if (side === 1) {     // Right
+          x = width + offset;
+          y = Math.random() * height;
+        } else if (side === 2) {     // Bottom
+          x = Math.random() * width;
+          y = height + offset;
+        } else {                   // Left
+          x = -offset;
+          y = Math.random() * height;
+        }
+        // Give each zombie a random speed.
+        const zombieSpeed = 1 + Math.random();
+        zombies.push({ x, y, speed: zombieSpeed, radius: 20 });
+      }
+
+      // Calculate distance between two points.
+      function distance(x1, y1, x2, y2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      }
+
+      // Update game objects.
+      function update() {
+        // Move player using WASD or arrow keys.
+        if (keys['w'] || keys['ArrowUp'])    player.y -= player.speed;
+        if (keys['s'] || keys['ArrowDown'])  player.y += player.speed;
+        if (keys['a'] || keys['ArrowLeft'])  player.x -= player.speed;
+        if (keys['d'] || keys['ArrowRight']) player.x += player.speed;
+
+        // Update player’s aim to point at the mouse.
+        player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+
+        // Update bullet positions.
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const b = bullets[i];
+          b.x += b.dx;
+          b.y += b.dy;
+          // Remove bullet if it goes off-screen.
+          if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) {
+            bullets.splice(i, 1);
+          }
+        }
+
+        // Update zombie positions.
+        for (let i = zombies.length - 1; i >= 0; i--) {
+          const z = zombies[i];
+          // Move zombie toward the player.
+          const angle = Math.atan2(player.y - z.y, player.x - z.x);
+          z.x += Math.cos(angle) * z.speed;
+          z.y += Math.sin(angle) * z.speed;
+
+          // Check collision with the player.
+          if (distance(z.x, z.y, player.x, player.y) < z.radius + player.radius) {
+            alert("Game Over!");
+            document.location.reload();
+          }
+        }
+
+        // Check for collisions between bullets and zombies.
+        for (let i = zombies.length - 1; i >= 0; i--) {
+          const z = zombies[i];
+          for (let j = bullets.length - 1; j >= 0; j--) {
+            const b = bullets[j];
+            if (distance(z.x, z.y, b.x, b.y) < z.radius + b.radius) {
+              // Remove both the zombie and the bullet.
+              zombies.splice(i, 1);
+              bullets.splice(j, 1);
+              break;
+            }
+          }
+        }
+      }
+
+      // Draw everything on the canvas.
+      function draw() {
+        // Clear the canvas.
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw the player as a stick figure.
+        drawPlayer();
+
+        // Draw each bullet.
+        for (const b of bullets) {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+          ctx.fillStyle = "black";
+          ctx.fill();
+        }
+
+        // Draw each zombie.
+        for (const z of zombies) {
+          drawZombie(z);
+        }
+      }
+
+      // Draw the player (a stick figure with a gun).
+      function drawPlayer() {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+
+        // Head.
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - 15, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Body.
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y - 5);
+        ctx.lineTo(player.x, player.y + 15);
+        ctx.stroke();
+
+        // Arms (one arm is drawn pointing in the gun’s direction).
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        const armLength = 15;
+        const gunX = player.x + Math.cos(player.angle) * armLength;
+        const gunY = player.y + Math.sin(player.angle) * armLength;
+        ctx.lineTo(gunX, gunY);
+        ctx.stroke();
+
+        // Legs.
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y + 15);
+        ctx.lineTo(player.x - 10, player.y + 30);
+        ctx.moveTo(player.x, player.y + 15);
+        ctx.lineTo(player.x + 10, player.y + 30);
+        ctx.stroke();
+
+        // Draw a simple gun as a short line.
+        ctx.beginPath();
+        ctx.moveTo(gunX, gunY);
+        const gunLength = 10;
+        ctx.lineTo(gunX + Math.cos(player.angle) * gunLength, gunY + Math.sin(player.angle) * gunLength);
+        ctx.stroke();
+      }
+
+      // Draw a zombie (a red stick figure).
+      function drawZombie(z) {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+
+        // Head.
+        ctx.beginPath();
+        ctx.arc(z.x, z.y - 15, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Body.
+        ctx.beginPath();
+        ctx.moveTo(z.x, z.y - 5);
+        ctx.lineTo(z.x, z.y + 15);
+        ctx.stroke();
+
+        // Arms.
+        ctx.beginPath();
+        ctx.moveTo(z.x, z.y);
+        ctx.lineTo(z.x - 15, z.y); // left arm
+        ctx.moveTo(z.x, z.y);
+        ctx.lineTo(z.x + 15, z.y); // right arm
+        ctx.stroke();
+
+        // Legs.
+        ctx.beginPath();
+        ctx.moveTo(z.x, z.y + 15);
+        ctx.lineTo(z.x - 10, z.y + 30);
+        ctx.moveTo(z.x, z.y + 15);
+        ctx.lineTo(z.x + 10, z.y + 30);
+        ctx.stroke();
+      }
+
+      // The main game loop: update then draw.
+      function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // Start the game.
+      gameLoop();
+    })();
+  </script>
+</body>
+</html>
