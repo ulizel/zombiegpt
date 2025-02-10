@@ -24,8 +24,8 @@ Work in progress:
 - Balancing
 
 
-**To install:**
-Simply download the file zombieGBT.html and run it in your favorite browser!
+**To install locally:**
+Simply download the files html,css and js files and run it in your favorite browser!
 
 I know it looks like 1980 graphics but try it out :)
 ![Demo](https://github.com/ulizel/zombiegbt/blob/main/demo%20image.png)
