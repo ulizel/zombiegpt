@@ -978,8 +978,8 @@ document.addEventListener("contextmenu", function (e) {
             rightArmDetached: false,   // NEW: right arm status
             currencyDropped: false
         };
-        if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 3; }
-        else { zombie.elite = false; zombie.health = 1; }
+        if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 6; }
+        else { zombie.elite = false; zombie.health = 2; }
         zombies.push(zombie);
     }
 
