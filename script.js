@@ -51,9 +51,9 @@ document.addEventListener("contextmenu", function (e) {
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.3);
-      }
+    }
       
-      function playExplosionSound() {
+    function playExplosionSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = "triangle";
@@ -64,9 +64,8 @@ document.addEventListener("contextmenu", function (e) {
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.5);
-      }
+    }
       
-
     function playZombieHitSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -147,7 +146,6 @@ document.addEventListener("contextmenu", function (e) {
         oscillator.stop(audioCtx.currentTime + 0.05);
     }
 
-
     function playReloadStartSound() {
         const now = audioCtx.currentTime;
         // Harsh "shook" part using a sawtooth wave:
@@ -207,6 +205,7 @@ document.addEventListener("contextmenu", function (e) {
     let particles = [];
     let autoReloadScheduled = false;
     let decapitatedHeads = [];
+    let detachedLimbs = []; // NEW global array for detached zombie limbs
     let currencyDrops = [];
 
     // For continuous flame sound.
@@ -263,7 +262,7 @@ document.addEventListener("contextmenu", function (e) {
         // Laser weapon properties:
         laserCooldown: 0,
         laserAmmo: 100,
-      rocketAmmo: 5
+        rocketAmmo: 5
     };
 
     // ---------------------
@@ -293,6 +292,7 @@ document.addEventListener("contextmenu", function (e) {
         { id: "explosiveRounds", name: "Explosive Rounds", description: "Bullets cause splash damage.", price: 0, effect: function () { player.explosiveRounds = true; } },
         { id: "freezeGrenade", name: "Freeze Grenade", description: "Slow all zombies for 5 seconds.", price: 0, effect: function () { freezeEndTime = Date.now() + 5000; } },
         { id: "critChance", name: "Critical Hit Upgrade", description: "Increase chance for critical hits.", price: 0, effect: function () { player.critChance += 0.05; } },
+        // FIXED the scoreMultiplier case by assigning base:
         { id: "scoreMultiplier", name: "Score Multiplier", description: "Double money earned for 10 seconds.", price: 0, effect: function () { player.scoreMultiplier = 2; setTimeout(() => { player.scoreMultiplier = 1; }, 10000); } }
     ];
 
@@ -320,7 +320,6 @@ document.addEventListener("contextmenu", function (e) {
             }
         }
     });
-
 
     document.addEventListener('keyup', (e) => { keys[e.key] = false; });
     canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -360,7 +359,7 @@ document.addEventListener("contextmenu", function (e) {
           document.getElementById("weaponSelectButton").style.display = "block";
           document.getElementById("testModeMenuButton").style.display = "block";
         }
-      });
+    });
       
     document.getElementById("modesButton").addEventListener("click", () => {
         document.getElementById("mainMenuOverlay").style.display = "none";
@@ -404,7 +403,6 @@ document.addEventListener("contextmenu", function (e) {
         document.getElementById("pauseMenuOverlay").style.display = "none";
         document.getElementById("instructions").style.display = "none";
     });
-
 
     document.getElementById("toggleGodModeButton").addEventListener("click", () => {
         gameMode = (gameMode === "god") ? "normal" : "god";
@@ -459,7 +457,6 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "rocketLauncher";
                 player.rocketAmmo = (gameMode === "test" || gameMode === "god") ? Infinity : 3;
             }
-
             else {
                 // For pistol and crossbow, no activeGun object is used.
                 player.activeGun = { type: null, ammo: 0 };
@@ -535,7 +532,7 @@ document.addEventListener("contextmenu", function (e) {
                 case "explosiveRounds": base = 50; break;
                 case "freezeGrenade": base = 50; break;
                 case "critChance": base = 25; break;
-                case "scoreMultiplier": 20; break;
+                case "scoreMultiplier": base = 20; break;  // FIXED assignment here.
                 default: base = 1;
             }
             item.price = Math.floor(base * shopPriceMultiplier);
@@ -616,7 +613,9 @@ document.addEventListener("contextmenu", function (e) {
     function updateParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            p.x += p.vx; p.y += p.vy; p.life--;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
             if (p.life <= 0) particles.splice(i, 1);
         }
     }
@@ -868,9 +867,9 @@ document.addEventListener("contextmenu", function (e) {
               dx: Math.cos(angle) * rocketSpeed,
               dy: Math.sin(angle) * rocketSpeed,
               spawnTime: Date.now(),
-              source: "rocket",  // ← Make sure this line ends with a comma!
-              // You can add additional properties if needed (like lifetime)
-            }; bullets.push(rocket);
+              source: "rocket"
+            };
+            bullets.push(rocket);
             player.rocketAmmo--;
             playRocketLaunchSound();
             spawnParticle(
@@ -883,1016 +882,1015 @@ document.addEventListener("contextmenu", function (e) {
               "rgba(255,140,0,ALPHA)"
             );
             player.lastShotTime = Date.now();
-          }
-    
+        }
         // New Crossbow branch
         else if (player.weapon === "crossbow") {
-        if (player.crossbowReloading) return;
-        if (player.crossbowAmmo <= 0) return;
-        let bulletSpeed = 20;
-        let angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-        let bolt = { x: player.x, y: player.y, dx: Math.cos(angle) * bulletSpeed, dy: Math.sin(angle) * bulletSpeed, spawnTime: Date.now(), source: "crossbow" };
-        bullets.push(bolt);
-        player.crossbowAmmo--;
-        player.crossbowReloading = true;
-        player.crossbowReloadStart = Date.now();
-        setTimeout(() => { player.crossbowReloading = false; }, player.crossbowReloadTime);
-        playGunshotSound();
-        player.lastShotTime = Date.now();
+            if (player.crossbowReloading) return;
+            if (player.crossbowAmmo <= 0) return;
+            let bulletSpeed = 20;
+            let angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            let bolt = { x: player.x, y: player.y, dx: Math.cos(angle) * bulletSpeed, dy: Math.sin(angle) * bulletSpeed, spawnTime: Date.now(), source: "crossbow" };
+            bullets.push(bolt);
+            player.crossbowAmmo--;
+            player.crossbowReloading = true;
+            player.crossbowReloadStart = Date.now();
+            setTimeout(() => { player.crossbowReloading = false; }, player.crossbowReloadTime);
+            playGunshotSound();
+            player.lastShotTime = Date.now();
+        }
     }
-}
 
     function reloadGun() {
-    if (gameMode === "god" || gameMode === "test") return;
-    if (!player.reloading && player.weapon === "pistol" && player.ammo < player.magazine) {
-        player.reloading = true;
-        player.reloadStart = Date.now();
-        // Initialize the reload duration to the base reload time.
-        player.reloadDuration = player.reloadTime;  // e.g., 2000 ms
-        // No penalty is active at the start.
-        player.penaltyActive = false;
-        autoReloadScheduled = false;
-        playReloadStartSound();
-    }
-}
-
-
-
-
-function attemptQuickReload() {
-    if (!player.reloading) return;
-
-    let reloadElapsed = Date.now() - player.reloadStart;
-    let progress = reloadElapsed / player.reloadDuration;
-    const QUICK_RELOAD_ZONE_START = 0.3;
-    const QUICK_RELOAD_ZONE_END = 0.4;
-
-    if (player.penaltyActive) {
-        console.log("Reload penalty active, wait for reload to complete.");
-        return;
-    }
-
-    if (progress >= QUICK_RELOAD_ZONE_START && progress <= QUICK_RELOAD_ZONE_END) {
-        player.ammo = player.magazine;
-        player.reloading = false;
-        player.penaltyActive = false;
-        playReloadEndSound();  // <-- Added here
-        console.log("Quick Reload Successful!");
-    } else {
-        // (Your penalty code remains unchanged)
-        if (progress < QUICK_RELOAD_ZONE_START) {
-            console.log("Quick Reload Failed: Too early. Penalty applied.");
+        if (gameMode === "god" || gameMode === "test") return;
+        if (!player.reloading && player.weapon === "pistol" && player.ammo < player.magazine) {
+            player.reloading = true;
             player.reloadStart = Date.now();
-            player.reloadDuration += 500;
-        } else if (progress > QUICK_RELOAD_ZONE_END) {
-            console.log("Quick Reload Failed: Too late. Penalty applied.");
-            let targetElapsed = player.reloadDuration * QUICK_RELOAD_ZONE_START;
-            player.reloadStart = Date.now() - targetElapsed;
-            player.reloadDuration += 1000;
-        }
-        player.penaltyActive = true;
-    }
-}
-
-
-
-
-
-
-// ---------------------
-// ZOMBIE SPAWNING
-// ---------------------
-setInterval(spawnZombie, 1000);
-function spawnZombie() {
-    if (gameOver || gameState !== "playing") return;
-    if (gameOver) return;
-    let side = Math.floor(Math.random() * 4);
-    let x, y;
-    const offset = 30;
-    if (side === 0) { x = Math.random() * width; y = -offset; }
-    else if (side === 1) { x = width + offset; y = Math.random() * height; }
-    else if (side === 2) { x = Math.random() * width; y = height + offset; }
-    else { x = -offset; y = Math.random() * height; }
-    const zombieSpeed = 0.5 + Math.random() * 2;
-    let zombie = {
-        x, y,
-        speed: zombieSpeed,
-        radius: 20,
-        dying: false,
-        deathTimer: 30,
-        initialDeathTimer: 30,
-        crawling: false,
-        walkCycle: Math.random() * Math.PI * 2,
-        health: 1,
-        headDecapitated: false,
-        currencyDropped: false
-    };
-    if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 3; }
-    else { zombie.elite = false; zombie.health = 1; }
-    zombies.push(zombie);
-}
-
-// ---------------------
-// POWER‑UP SPAWNING
-// ---------------------
-setInterval(spawnPowerUp, 10000);
-function spawnPowerUp() {
-    if (gameOver || gameState !== "playing") return;
-    if (gameOver) return;
-    const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-    const margin = 50;
-    const x = margin + Math.random() * (width - 2 * margin);
-    const y = margin + Math.random() * (height - 2 * margin);
-    powerUps.push({ type, x, y, radius: 15, spawnTime: Date.now() });
-}
-
-// ---------------------
-// UTILITY FUNCTION
-// ---------------------
-function distance(x1, y1, x2, y2) {
-    return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-}
-
-// ---------------------
-// BLOOD SPLATTER EFFECT
-// ---------------------
-function spawnBloodSplatter(x, y) {
-    const count = 10;
-    for (let i = 0; i < count; i++) {
-        let angle = Math.random() * Math.PI * 2;
-        let speed = Math.random() * 4;
-        spawnParticle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 2 + Math.random() * 2, 30, "rgba(220,20,60,ALPHA)");
-    }
-}
-
-// ---------------------
-// ROCKET EXPLOSION LOGIC
-// ---------------------
-function explodeRocket(rocket) {
-    // Determine the explosion radius based on the rocket’s impact and mouse aim.
-    let dx = mouse.x - rocket.x;
-    let dy = mouse.y - rocket.y;
-    let explosionRadius = Math.min(50 + Math.sqrt(dx * dx + dy * dy) / 10, 150);
-    
-    // Damage zombies within the explosion radius.
-    zombies.forEach((z) => {
-      if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
-        zombieKills++;
-        z.dying = true;
-        z.deathTimer = 60;
-        z.initialDeathTimer = 60;
-        
-        // Calculate a push-away vector.
-        let impactDx = z.x - rocket.x;
-        let impactDy = z.y - rocket.y;
-        let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
-        if (mag === 0) mag = 1;
-        impactDx /= mag;
-        impactDy /= mag;
-        z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
-        z.fallAngle = Math.atan2(impactDy, impactDx);
-        
-        spawnBloodSplatter(z.x, z.y);
-        if (!z.currencyDropped) {
-          maybeDropCurrency(z.x, z.y, z.elite);
-          z.currencyDropped = true;
-        }
-      }
-    });
-    
-    // Spawn explosion particles.
-    // Increase the number of particles to make the explosion denser.
-    for (let i = 0; i < 50; i++) {  // increased from 30 to 50
-      let angle = Math.random() * Math.PI * 2;
-      // Increase the speed range slightly for a more dramatic effect.
-      let speed = Math.random() * 6;
-      // Optionally adjust size and lifetime for a denser look.
-      let size = 3 + Math.random() * 2;    // size between 3 and 5
-      let lifetime = 35 + Math.random() * 15;  // lifetime between 35 and 50 frames
-      // Use a mix of fiery colors by randomly choosing between two color schemes.
-      let color = (Math.random() < 0.5)
-        ? "rgba(255,69,0,ALPHA)"    // fiery orange-red
-        : "rgba(255,140,0,ALPHA)";  // darker orange
-      spawnParticle(rocket.x, rocket.y, Math.cos(angle) * speed, Math.sin(angle) * speed, size, lifetime, color);
-    }
-    
-    // Optional: Add an explosion flash effect.
-    // Spawn a large, short-lived particle to simulate a flash.
-    spawnParticle(rocket.x, rocket.y, 0, 0, explosionRadius, 10, "rgba(255,255,200,ALPHA)");
-    
-    // Play the explosion sound.
-    playExplosionSound();
-  }
-  
-
-// ---------------------
-// HUD DRAWING FUNCTION
-// ---------------------
-function drawHUD() {
-    const hudMarginLeft = 20;
-    const hudMarginTop = 20;
-    const lineHeight = 24;
-    let lines = [];
-    lines.push("Money: $" + player.money);
-    lines.push("Lives: " + player.lives);
-    if (player.activeGun && player.activeGun.type) {
-        if (player.activeGun.type === "flamethrower")
-            lines.push("Fuel (" + player.activeGun.type + "): " + Math.floor(player.activeGun.fuel));
-        else
-            lines.push("Ammo (" + player.activeGun.type + "): " + (player.activeGun.ammo === Infinity ? "∞" : player.activeGun.ammo));
-    } else if (player.weapon === "pistol")
-        lines.push("Ammo: " + player.ammo + " / " + player.magazine);
-    else if (player.weapon === "crossbow")
-        lines.push("Ammo (Crossbow): " + player.crossbowAmmo + " bolts");
-    else if (player.weapon === "laser")
-        lines.push("Laser Ammo: " + player.laserAmmo);
-    else if (player.weapon === "rocketLauncher")
-        lines.push("Rocket Ammo: " + player.rocketAmmo);
-    lines.push("Weapon: " + player.weapon.charAt(0).toUpperCase() + player.weapon.slice(1));
-    if (player.rapidFireLevel > 0) lines.push("Rapid Fire Level: " + player.rapidFireLevel);
-    if (player.damageMultiplier > 1) lines.push("Damage Boost: x" + player.damageMultiplier.toFixed(2));
-    if (player.extraArmor > 0) lines.push("Armor: " + player.extraArmor);
-    if (player.healthRegenRate > 0) lines.push("Health Regen: +" + player.healthRegenRate + " per 5s");
-    if (player.critChance > 0) lines.push("Crit Chance: " + (player.critChance * 100).toFixed(0) + "%");
-    if (player.explosiveRounds) lines.push("Explosive Rounds: On");
-    if (player.scoreMultiplier > 1) lines.push("Score Multiplier: x" + player.scoreMultiplier);
-    let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
-let elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
-
-    lines.push("Kills: " + zombieKills);
-    lines.push("Time: " + elapsedTime + "s");
-    ctx.save();
-    ctx.font = "20px sans-serif";
-    ctx.fillStyle = "black";
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], hudMarginLeft, hudMarginTop + i * lineHeight);
-    }
-    ctx.restore();
-}
-
-// ---------------------
-// GAME UPDATE FUNCTION
-// ---------------------
-function update() {
-    if (gameState !== "playing") return;
-
-    if (player.healthRegenRate > 0 && Date.now() - player.lastRegenTime >= 5000) {
-        player.lives += player.healthRegenRate;
-        player.lastRegenTime = Date.now();
-    }
-
-    if (gameMode === "god" || gameMode === "test") {
-        player.ammo = player.magazine;
-        if (player.activeGun && player.activeGun.type && player.weapon !== "pistol")
-            player.activeGun.ammo = Infinity;
-    }
-
-    if (gameMode === "god") player.speed = player.baseSpeed * 2;
-    else player.speed = player.baseSpeed * (player.powerUps.speed ? 1.5 : 1);
-
-    if (player.weapon === "machineGun" || player.weapon === "shotgun" || player.weapon === "flamethrower") {
-        if (player.activeGun && player.activeGun.type) {
-            player.weapon = player.activeGun.type;
-        } else {
-            player.weapon = "pistol";
+            // Initialize the reload duration to the base reload time.
+            player.reloadDuration = player.reloadTime;  // e.g., 2000 ms
+            // No penalty is active at the start.
+            player.penaltyActive = false;
+            autoReloadScheduled = false;
+            playReloadStartSound();
         }
     }
 
-    let moving = false;
-    if (keys['w'] || keys['ArrowUp']) { player.y -= player.speed; moving = true; }
-    if (keys['s'] || keys['ArrowDown']) { player.y += player.speed; moving = true; }
-    if (keys['a'] || keys['ArrowLeft']) { player.x -= player.speed; moving = true; }
-    if (keys['d'] || keys['ArrowRight']) { player.x += player.speed; moving = true; }
-    player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-    if (moving) player.walkCycle += 0.15; else player.walkCycle = 0;
-    if (player.recoil > 0) player.recoil = Math.max(player.recoil - 1, 0);
-    if (player.reloading && player.weapon === "pistol") {
+    function attemptQuickReload() {
+        if (!player.reloading) return;
+
         let reloadElapsed = Date.now() - player.reloadStart;
-        if (reloadElapsed >= player.reloadDuration) {
+        let progress = reloadElapsed / player.reloadDuration;
+        const QUICK_RELOAD_ZONE_START = 0.3;
+        const QUICK_RELOAD_ZONE_END = 0.4;
+
+        if (player.penaltyActive) {
+            console.log("Reload penalty active, wait for reload to complete.");
+            return;
+        }
+
+        if (progress >= QUICK_RELOAD_ZONE_START && progress <= QUICK_RELOAD_ZONE_END) {
             player.ammo = player.magazine;
             player.reloading = false;
             player.penaltyActive = false;
-            playReloadEndSound();  // <-- Ensure it's called on normal completion
-        }
-    }
-
-    for (let key in player.powerUps) {
-        if (gameMode !== "god" && Date.now() > player.powerUps[key]) delete player.powerUps[key];
-    }
-    for (let i = powerUps.length - 1; i >= 0; i--) {
-        const pwr = powerUps[i];
-        if (Date.now() - pwr.spawnTime > 20000) { powerUps.splice(i, 1); continue; }
-        if (distance(player.x, player.y, pwr.x, pwr.y) < player.radius + pwr.radius) {
-            activatePowerUp(pwr.type);
-            powerUps.splice(i, 1);
-        }
-    }
-
-    // Machine gun rapid fire.
-    if (player.weapon === "machineGun" && mouseDown) {
-        let fireInterval = baseMachineGunFireInterval / (1 + player.rapidFireLevel * 0.2);
-        if (Date.now() - player.lastShotTime >= fireInterval) shootWeapon();
-    }
-    // Flamethrower.
-    if (player.weapon === "flamethrower" && mouseDown) {
-        if (player.activeGun && player.activeGun.fuel > 0) {
-            player.activeGun.fuel -= 0.5;
-            if (player.activeGun.fuel < 0) player.activeGun.fuel = 0;
-            spawnFlameParticles();
-            spawnFlameBullets();
-            playFlameSound();
-            player.lastShotTime = Date.now();
+            playReloadEndSound();
+            console.log("Quick Reload Successful!");
         } else {
-            player.activeGun = { type: null, fuel: 0 };
-            player.weapon = "pistol";
-            stopFlameSound();
+            if (progress < QUICK_RELOAD_ZONE_START) {
+                console.log("Quick Reload Failed: Too early. Penalty applied.");
+                player.reloadStart = Date.now();
+                player.reloadDuration += 500;
+            } else if (progress > QUICK_RELOAD_ZONE_END) {
+                console.log("Quick Reload Failed: Too late. Penalty applied.");
+                let targetElapsed = player.reloadDuration * QUICK_RELOAD_ZONE_START;
+                player.reloadStart = Date.now() - targetElapsed;
+                player.reloadDuration += 1000;
+            }
+            player.penaltyActive = true;
         }
-    } else { if (player.weapon !== "flamethrower" || !mouseDown) stopFlameSound(); }
+    }
 
-    // Laser continuous fire.
-    if (player.weapon === "laser" && mouseDown) {
-        let laserFireInterval = 100; // fire every 100ms
-        if (Date.now() - player.lastShotTime >= laserFireInterval) {
-            if (player.laserAmmo > 0) {
-                player.laserAmmo--;
-                playLaserSound();
-                player.lastShotTime = Date.now();
-                laserBeams.push({ x: player.x, y: player.y, angle: player.angle, spawnTime: Date.now(), duration: 100 });
-                let beamWidth = 10;
-                let beamLength = Math.sqrt(width * width + height * height);
-                for (let i = zombies.length - 1; i >= 0; i--) {
-                    let z = zombies[i];
-                    if (z.dying) continue;
-                    let dx = z.x - player.x;
-                    let dy = z.y - player.y;
-                    let proj = dx * Math.cos(player.angle) + dy * Math.sin(player.angle);
-                    if (proj < 0 || proj > beamLength) continue;
-                    let perpDist = Math.abs(-Math.sin(player.angle) * dx + Math.cos(player.angle) * dy);
-                    if (perpDist < beamWidth + z.radius) {
-                        zombieKills++;
-                        z.dying = true;
-                        z.deathTimer = 60;
-                        z.initialDeathTimer = 60;
-                        z.fallAngle = player.angle;
-                        z.fallVector = { dx: Math.cos(player.angle) * 5, dy: Math.sin(player.angle) * 5 };
-                        spawnBloodSplatter(z.x, z.y);
-                        if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                    }
-                }
+    // ---------------------
+    // ZOMBIE SPAWNING
+    // ---------------------
+    setInterval(spawnZombie, 1000);
+    function spawnZombie() {
+        if (gameOver || gameState !== "playing") return;
+        if (gameOver) return;
+        let side = Math.floor(Math.random() * 4);
+        let x, y;
+        const offset = 30;
+        if (side === 0) { x = Math.random() * width; y = -offset; }
+        else if (side === 1) { x = width + offset; y = Math.random() * height; }
+        else if (side === 2) { x = Math.random() * width; y = height + offset; }
+        else { x = -offset; y = Math.random() * height; }
+        const zombieSpeed = 0.5 + Math.random() * 2;
+        let zombie = {
+            x, y,
+            speed: zombieSpeed,
+            radius: 20,
+            dying: false,
+            deathTimer: 30,
+            initialDeathTimer: 30,
+            crawling: false,
+            walkCycle: Math.random() * Math.PI * 2,
+            health: 1,
+            headDecapitated: false,
+            leftArmDetached: false,    // NEW: left arm status
+            rightArmDetached: false,   // NEW: right arm status
+            currencyDropped: false
+        };
+        if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 3; }
+        else { zombie.elite = false; zombie.health = 1; }
+        zombies.push(zombie);
+    }
+
+    // ---------------------
+    // POWER‑UP SPAWNING
+    // ---------------------
+    setInterval(spawnPowerUp, 10000);
+    function spawnPowerUp() {
+        if (gameOver || gameState !== "playing") return;
+        if (gameOver) return;
+        const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+        const margin = 50;
+        const x = margin + Math.random() * (width - 2 * margin);
+        const y = margin + Math.random() * (height - 2 * margin);
+        powerUps.push({ type, x, y, radius: 15, spawnTime: Date.now() });
+    }
+
+    // ---------------------
+    // UTILITY FUNCTION
+    // ---------------------
+    function distance(x1, y1, x2, y2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    }
+
+    // ---------------------
+    // BLOOD SPLATTER EFFECT
+    // ---------------------
+    function spawnBloodSplatter(x, y) {
+        const count = 10;
+        for (let i = 0; i < count; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * 4;
+            spawnParticle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 2 + Math.random() * 2, 30, "rgba(220,20,60,ALPHA)");
+        }
+    }
+
+    // ---------------------
+    // ROCKET EXPLOSION LOGIC
+    // ---------------------
+    function explodeRocket(rocket) {
+        let dx = mouse.x - rocket.x;
+        let dy = mouse.y - rocket.y;
+        let explosionRadius = Math.min(50 + Math.sqrt(dx * dx + dy * dy) / 10, 150);
+        
+        zombies.forEach((z) => {
+          if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
+            zombieKills++;
+            z.dying = true;
+            z.deathTimer = 60;
+            z.initialDeathTimer = 60;
+            let impactDx = z.x - rocket.x;
+            let impactDy = z.y - rocket.y;
+            let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
+            if (mag === 0) mag = 1;
+            impactDx /= mag;
+            impactDy /= mag;
+            z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
+            z.fallAngle = Math.atan2(impactDy, impactDx);
+            spawnBloodSplatter(z.x, z.y);
+            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+          }
+        });
+        
+        for (let i = 0; i < 50; i++) {
+          let angle = Math.random() * Math.PI * 2;
+          let speed = Math.random() * 6;
+          let size = 3 + Math.random() * 2;
+          let lifetime = 35 + Math.random() * 15;
+          let color = (Math.random() < 0.5)
+            ? "rgba(255,69,0,ALPHA)"
+            : "rgba(255,140,0,ALPHA)";
+          spawnParticle(rocket.x, rocket.y, Math.cos(angle) * speed, Math.sin(angle) * speed, size, lifetime, color);
+        }
+        
+        spawnParticle(rocket.x, rocket.y, 0, 0, explosionRadius, 10, "rgba(255,255,200,ALPHA)");
+        playExplosionSound();
+    }
+
+    // ---------------------
+    // HUD DRAWING FUNCTION
+    // ---------------------
+    function drawHUD() {
+        const hudMarginLeft = 20;
+        const hudMarginTop = 20;
+        const lineHeight = 24;
+        let lines = [];
+        lines.push("Money: $" + player.money);
+        lines.push("Lives: " + player.lives);
+        if (player.activeGun && player.activeGun.type) {
+            if (player.activeGun.type === "flamethrower")
+                lines.push("Fuel (" + player.activeGun.type + "): " + Math.floor(player.activeGun.fuel));
+            else
+                lines.push("Ammo (" + player.activeGun.type + "): " + (player.activeGun.ammo === Infinity ? "∞" : player.activeGun.ammo));
+        } else if (player.weapon === "pistol")
+            lines.push("Ammo: " + player.ammo + " / " + player.magazine);
+        else if (player.weapon === "crossbow")
+            lines.push("Ammo (Crossbow): " + player.crossbowAmmo + " bolts");
+        else if (player.weapon === "laser")
+            lines.push("Laser Ammo: " + player.laserAmmo);
+        else if (player.weapon === "rocketLauncher")
+            lines.push("Rocket Ammo: " + player.rocketAmmo);
+        lines.push("Weapon: " + player.weapon.charAt(0).toUpperCase() + player.weapon.slice(1));
+        if (player.rapidFireLevel > 0) lines.push("Rapid Fire Level: " + player.rapidFireLevel);
+        if (player.damageMultiplier > 1) lines.push("Damage Boost: x" + player.damageMultiplier.toFixed(2));
+        if (player.extraArmor > 0) lines.push("Armor: " + player.extraArmor);
+        if (player.healthRegenRate > 0) lines.push("Health Regen: +" + player.healthRegenRate + " per 5s");
+        if (player.critChance > 0) lines.push("Crit Chance: " + (player.critChance * 100).toFixed(0) + "%");
+        if (player.explosiveRounds) lines.push("Explosive Rounds: On");
+        if (player.scoreMultiplier > 1) lines.push("Score Multiplier: x" + player.scoreMultiplier);
+        let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
+        let elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
+        lines.push("Kills: " + zombieKills);
+        lines.push("Time: " + elapsedTime + "s");
+        ctx.save();
+        ctx.font = "20px sans-serif";
+        ctx.fillStyle = "black";
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], hudMarginLeft, hudMarginTop + i * lineHeight);
+        }
+        ctx.restore();
+    }
+
+    // ---------------------
+    // GAME UPDATE FUNCTION
+    // ---------------------
+    function update() {
+        if (gameState !== "playing") return;
+
+        if (player.healthRegenRate > 0 && Date.now() - player.lastRegenTime >= 5000) {
+            player.lives += player.healthRegenRate;
+            player.lastRegenTime = Date.now();
+        }
+
+        if (gameMode === "god" || gameMode === "test") {
+            player.ammo = player.magazine;
+            if (player.activeGun && player.activeGun.type && player.weapon !== "pistol")
+                player.activeGun.ammo = Infinity;
+        }
+
+        if (gameMode === "god") player.speed = player.baseSpeed * 2;
+        else player.speed = player.baseSpeed * (player.powerUps.speed ? 1.5 : 1);
+
+        if (player.weapon === "machineGun" || player.weapon === "shotgun" || player.weapon === "flamethrower") {
+            if (player.activeGun && player.activeGun.type) {
+                player.weapon = player.activeGun.type;
             } else {
-                // Switch to pistol if laser ammo is depleted.
                 player.weapon = "pistol";
             }
         }
-    }
 
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        let b = bullets[i];
-      
-        if (b.source === "rocket") {
-            // Calculate the rocket's current angle.
-            let rocketAngle = Math.atan2(b.dy, b.dx);
-            
-            // Increase tail offset for a more noticeable trail.
-            let tailOffset = 16; 
-            let tailX = b.x - Math.cos(rocketAngle) * tailOffset;
-            let tailY = b.y - Math.sin(rocketAngle) * tailOffset;
-            
-            // Spawn multiple smoke particles each frame to enhance the trail effect.
-            // Adjust the number, size, and lifetime as needed.
-            for (let k = 0; k < 2; k++) {
-              // Slight random offset for a more natural, scattered trail.
-              spawnParticle(
-                tailX + (Math.random() - 0.5) * 4, 
-                tailY + (Math.random() - 0.5) * 4,
-                (Math.random() - 0.5) * 0.5, 
-                (Math.random() - 0.5) * 0.5,
-                4,      // Particle size (increased from 3)
-                40,     // Particle lifetime (increased from 20)
-                "rgba(80,80,80,ALPHA)"  // A darker gray for better contrast.
-              );
-            }
-            
-            // Update the rocket's position.
-            b.x += b.dx;
-            b.y += b.dy;
-            
-            // Check for collision with zombies or off-screen or expired lifetime.
-            let exploded = false;
-            for (let j = 0; j < zombies.length; j++) {
-              let z = zombies[j];
-              if (distance(b.x, b.y, z.x, z.y) < z.radius + 10) {
-                explodeRocket(b);
-                exploded = true;
-                break;
-              }
-            }
-            if (b.x < 0 || b.x > width || b.y < 0 || b.y > height || Date.now() - b.spawnTime > 3000) {
-              explodeRocket(b);
-              exploded = true;
-            }
-            if (exploded) {
-              bullets.splice(i, 1);
-            }
-            continue;  // Skip further processing for this bullet.
-          }
-          
-        b.x += b.dx; b.y += b.dy;
-        if (b.source !== "flamethrower")
-            spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, "rgba(0,0,0,ALPHA)");
-        if (b.source === "flamethrower" && distance(b.startX, b.startY, b.x, b.y) > 100) { bullets.splice(i, 1); continue; }
-        if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) { bullets.splice(i, 1); }
-    }
-
-    for (let i = zombies.length - 1; i >= 0; i--) {
-        let z = zombies[i];
-        if (!z.dying) {
-            let effectiveSpeed = z.speed;
-            if (player.powerUps.slowMotion) effectiveSpeed *= 0.5;
-            if (freezeEndTime && Date.now() < freezeEndTime) effectiveSpeed *= 0.5;
-            if (z.crawling) effectiveSpeed *= 0.3;
-            const angle = Math.atan2(player.y - z.y, player.x - z.x);
-            z.x += Math.cos(angle) * effectiveSpeed;
-            z.y += Math.sin(angle) * effectiveSpeed;
-            if (distance(z.x, z.y, player.x, player.y) < z.radius + player.radius) {
-                if (Date.now() < (player.invulnerableUntil || 0)) { }
-                else if (gameMode === "god" || player.powerUps.shield) {
-                    if (!z.dying) {
-                        zombieKills++;
-                        z.dying = true;
-                        z.deathTimer = 60;
-                        z.initialDeathTimer = 60;
-                        z.fallAngle = 0;
-                        z.fallVector = { dx: 0, dy: 2 };
-                        spawnBloodSplatter(z.x, z.y);
-                        if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                    }
-                } else if (player.extraArmor > 0) {
-                    player.extraArmor--;
-                    if (!z.dying) {
-                        zombieKills++;
-                        z.dying = true;
-                        z.deathTimer = 60;
-                        z.initialDeathTimer = 60;
-                        z.fallAngle = 0;
-                        z.fallVector = { dx: 0, dy: 2 };
-                        spawnBloodSplatter(z.x, z.y);
-                        if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                    }
-                } else if (player.lives > 1) {
-                    player.lives--;
-                    player.invulnerableUntil = Date.now() + 2000;
-                    if (!z.dying) {
-                        zombieKills++;
-                        z.dying = true;
-                        z.deathTimer = 60;
-                        z.initialDeathTimer = 60;
-                        z.fallAngle = 0;
-                        z.fallVector = { dx: 0, dy: 2 };
-                        spawnBloodSplatter(z.x, z.y);
-                        if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                    }
-                } else { gameOver = true; showGameOverOverlay(); }
-            }
-        } else {
-            z.x += z.fallVector.dx;
-            z.y += z.fallVector.dy;
-            z.fallVector.dx *= 0.95;
-            z.fallVector.dy *= 0.95;
-            z.deathTimer--;
-            if (z.deathTimer <= 0) {
-                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                zombies.splice(i, 1);
+        let moving = false;
+        if (keys['w'] || keys['ArrowUp']) { player.y -= player.speed; moving = true; }
+        if (keys['s'] || keys['ArrowDown']) { player.y += player.speed; moving = true; }
+        if (keys['a'] || keys['ArrowLeft']) { player.x -= player.speed; moving = true; }
+        if (keys['d'] || keys['ArrowRight']) { player.x += player.speed; moving = true; }
+        player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+        if (moving) player.walkCycle += 0.15; else player.walkCycle = 0;
+        if (player.recoil > 0) player.recoil = Math.max(player.recoil - 1, 0);
+        if (player.reloading && player.weapon === "pistol") {
+            let reloadElapsed = Date.now() - player.reloadStart;
+            if (reloadElapsed >= player.reloadDuration) {
+                player.ammo = player.magazine;
+                player.reloading = false;
+                player.penaltyActive = false;
+                playReloadEndSound();
             }
         }
-    }
 
-    for (let i = zombies.length - 1; i >= 0; i--) {
-        let z = zombies[i];
-        if (!z.dying) {
-            for (let j = bullets.length - 1; j >= 0; j--) {
-                let b = bullets[j];
-                let collisionTolerance = (b.source === "flamethrower") ? 10 : 3;
-                if (distance(z.x, z.y, b.x, b.y) < z.radius + collisionTolerance) {
-                    if (b.source === "flamethrower") {
-                        z.health -= 0.5 * player.damageMultiplier;
-                        if (z.health <= 0 && !z.dying) {
+        for (let key in player.powerUps) {
+            if (gameMode !== "god" && Date.now() > player.powerUps[key]) delete player.powerUps[key];
+        }
+        for (let i = powerUps.length - 1; i >= 0; i--) {
+            const pwr = powerUps[i];
+            if (Date.now() - pwr.spawnTime > 20000) { powerUps.splice(i, 1); continue; }
+            if (distance(player.x, player.y, pwr.x, pwr.y) < player.radius + pwr.radius) {
+                activatePowerUp(pwr.type);
+                powerUps.splice(i, 1);
+            }
+        }
+
+        // Machine gun rapid fire.
+        if (player.weapon === "machineGun" && mouseDown) {
+            let fireInterval = baseMachineGunFireInterval / (1 + player.rapidFireLevel * 0.2);
+            if (Date.now() - player.lastShotTime >= fireInterval) shootWeapon();
+        }
+        // Flamethrower.
+        if (player.weapon === "flamethrower" && mouseDown) {
+            if (player.activeGun && player.activeGun.fuel > 0) {
+                player.activeGun.fuel -= 0.5;
+                if (player.activeGun.fuel < 0) player.activeGun.fuel = 0;
+                spawnFlameParticles();
+                spawnFlameBullets();
+                playFlameSound();
+                player.lastShotTime = Date.now();
+            } else {
+                player.activeGun = { type: null, fuel: 0 };
+                player.weapon = "pistol";
+                stopFlameSound();
+            }
+        } else { if (player.weapon !== "flamethrower" || !mouseDown) stopFlameSound(); }
+
+        // Laser continuous fire.
+        if (player.weapon === "laser" && mouseDown) {
+            let laserFireInterval = 100; // fire every 100ms
+            if (Date.now() - player.lastShotTime >= laserFireInterval) {
+                if (player.laserAmmo > 0) {
+                    player.laserAmmo--;
+                    playLaserSound();
+                    player.lastShotTime = Date.now();
+                    laserBeams.push({ x: player.x, y: player.y, angle: player.angle, spawnTime: Date.now(), duration: 100 });
+                    let beamWidth = 10;
+                    let beamLength = Math.sqrt(width * width + height * height);
+                    for (let i = zombies.length - 1; i >= 0; i--) {
+                        let z = zombies[i];
+                        if (z.dying) continue;
+                        let dx = z.x - player.x;
+                        let dy = z.y - player.y;
+                        let proj = dx * Math.cos(player.angle) + dy * Math.sin(player.angle);
+                        if (proj < 0 || proj > beamLength) continue;
+                        let perpDist = Math.abs(-Math.sin(player.angle) * dx + Math.cos(player.angle) * dy);
+                        if (perpDist < beamWidth + z.radius) {
                             zombieKills++;
+                            z.dying = true;
+                            z.deathTimer = 60;
+                            z.initialDeathTimer = 60;
+                            z.fallAngle = player.angle;
+                            z.fallVector = { dx: Math.cos(player.angle) * 5, dy: Math.sin(player.angle) * 5 };
                             spawnBloodSplatter(z.x, z.y);
+                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                        }
+                    }
+                } else {
+                    player.weapon = "pistol";
+                }
+            }
+        }
+
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            let b = bullets[i];
+
+            if (b.source === "rocket") {
+                let rocketAngle = Math.atan2(b.dy, b.dx);
+                let tailOffset = 16; 
+                let tailX = b.x - Math.cos(rocketAngle) * tailOffset;
+                let tailY = b.y - Math.sin(rocketAngle) * tailOffset;
+                for (let k = 0; k < 2; k++) {
+                  spawnParticle(
+                    tailX + (Math.random() - 0.5) * 4, 
+                    tailY + (Math.random() - 0.5) * 4,
+                    (Math.random() - 0.5) * 0.5, 
+                    (Math.random() - 0.5) * 0.5,
+                    4,
+                    40,
+                    "rgba(80,80,80,ALPHA)"
+                  );
+                }
+                b.x += b.dx;
+                b.y += b.dy;
+                let exploded = false;
+                for (let j = 0; j < zombies.length; j++) {
+                  let z = zombies[j];
+                  if (distance(b.x, b.y, z.x, z.y) < z.radius + 10) {
+                    explodeRocket(b);
+                    exploded = true;
+                    break;
+                  }
+                }
+                if (b.x < 0 || b.x > width || b.y < 0 || b.y > height || Date.now() - b.spawnTime > 3000) {
+                  explodeRocket(b);
+                  exploded = true;
+                }
+                if (exploded) {
+                  bullets.splice(i, 1);
+                }
+                continue;
+            }
+
+            b.x += b.dx;
+            b.y += b.dy;
+            if (b.source !== "flamethrower")
+                spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, "rgba(0,0,0,ALPHA)");
+            if (b.source === "flamethrower" && distance(b.startX, b.startY, b.x, b.y) > 100) { bullets.splice(i, 1); continue; }
+            if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) { bullets.splice(i, 1); }
+        }
+
+        for (let i = zombies.length - 1; i >= 0; i--) {
+            let z = zombies[i];
+            if (!z.dying) {
+                let effectiveSpeed = z.speed;
+                if (player.powerUps.slowMotion) effectiveSpeed *= 0.5;
+                if (freezeEndTime && Date.now() < freezeEndTime) effectiveSpeed *= 0.5;
+                if (z.crawling) effectiveSpeed *= 0.3;
+                const angle = Math.atan2(player.y - z.y, player.x - z.x);
+                z.x += Math.cos(angle) * effectiveSpeed;
+                z.y += Math.sin(angle) * effectiveSpeed;
+                if (distance(z.x, z.y, player.x, player.y) < z.radius + player.radius) {
+                    if (Date.now() < (player.invulnerableUntil || 0)) { }
+                    else if (gameMode === "god" || player.powerUps.shield) {
+                        if (!z.dying) {
+                            zombieKills++;
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
                             z.fallAngle = 0;
                             z.fallVector = { dx: 0, dy: 2 };
+                            spawnBloodSplatter(z.x, z.y);
                             if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
                         }
-                        bullets.splice(j, 1);
-                        continue;
-                    }
-                    else if (b.source === "crossbow") {
-                        let baseDamage = 4;
-                        if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                            baseDamage *= 1.5;
-                            if (!z.headDecapitated) {
-                                z.headDecapitated = true;
-                                decapitatedHeads.push({
-                                    x: z.x,
-                                    y: z.y - 15,
-                                    vx: b.dx * 0.8,
-                                    vy: b.dy * 0.8,
-                                    rotation: 0,
-                                    angularVelocity: 0.1,
-                                    life: 120,
-                                    maxLife: 120
-                                });
-                                spawnBloodSplatter(z.x, z.y - 15);
-                            }
-                            playZombieHeadshotSound();
-                        } else {
-                            playZombieHitSound();
-                        }
-                        z.health -= baseDamage * player.damageMultiplier;
-                        bullets.splice(j, 1);
-                        if (z.health <= 0 && !z.dying) {
+                    } else if (player.extraArmor > 0) {
+                        player.extraArmor--;
+                        if (!z.dying) {
                             zombieKills++;
-                            spawnBloodSplatter(z.x, z.y);
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
-                            let fallImpactFactor = 0.5;
-                            z.fallAngle = Math.atan2(b.dy, b.dx);
-                            z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                            z.fallAngle = 0;
+                            z.fallVector = { dx: 0, dy: 2 };
+                            spawnBloodSplatter(z.x, z.y);
                             if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
                         }
-                        break;
-                    }
-                    else if (b.source === "laser") {
-                        // Legacy branch (unused since laser now uses beam collision)
-                        let baseDamage = 8;
-                        if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                            baseDamage *= 1.5;
-                            if (!z.headDecapitated) {
-                                z.headDecapitated = true;
-                                decapitatedHeads.push({
-                                    x: z.x,
-                                    y: z.y - 15,
-                                    vx: b.dx * 0.8,
-                                    vy: b.dy * 0.8,
-                                    rotation: 0,
-                                    angularVelocity: 0.1,
-                                    life: 120,
-                                    maxLife: 120
-                                });
-                                spawnBloodSplatter(z.x, z.y - 15);
-                            }
-                            playZombieHeadshotSound();
-                        } else {
-                            playZombieHitSound();
-                        }
-                        z.health -= baseDamage * player.damageMultiplier;
-                        bullets.splice(j, 1);
-                        if (z.health <= 0 && !z.dying) {
+                    } else if (player.lives > 1) {
+                        player.lives--;
+                        player.invulnerableUntil = Date.now() + 2000;
+                        if (!z.dying) {
                             zombieKills++;
-                            spawnBloodSplatter(z.x, z.y);
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
-                            let fallImpactFactor = 0.5;
-                            z.fallAngle = Math.atan2(b.dy, b.dx);
-                            z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                        }
-                        break;
-                    }
-                    else {
-                        let baseDamage = 0;
-                        if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                            baseDamage = 2;
-                            if (!z.headDecapitated) {
-                                z.headDecapitated = true;
-                                decapitatedHeads.push({
-                                    x: z.x,
-                                    y: z.y - 15,
-                                    vx: b.dx * 0.8,
-                                    vy: b.dy * 0.8,
-                                    rotation: 0,
-                                    angularVelocity: 0.1,
-                                    life: 120,
-                                    maxLife: 120
-                                });
-                                spawnBloodSplatter(z.x, z.y - 15);
-                            }
-                            playZombieHeadshotSound();
-                        } else if (b.y > z.y + 5) {
-                            baseDamage = 1;
-                            z.crawling = true;
-                            playZombieHitSound();
-                        } else {
-                            baseDamage = 1;
-                            playZombieHitSound();
-                        }
-                        let damage = baseDamage * player.damageMultiplier;
-                        if (Math.random() < player.critChance) damage *= 2;
-                        z.health -= damage;
-                        if (player.explosiveRounds) {
-                            for (let k = 0; k < zombies.length; k++) {
-                                let z2 = zombies[k];
-                                if (z2 !== z && distance(b.x, b.y, z2.x, z2.y) < 30)
-                                    z2.health -= damage * 0.5;
-                            }
-                        }
-                        if (z.health <= 0 && !z.dying) {
-                            zombieKills++;
+                            z.fallAngle = 0;
+                            z.fallVector = { dx: 0, dy: 2 };
                             spawnBloodSplatter(z.x, z.y);
-                            z.dying = true;
-                            z.deathTimer = 60;
-                            z.initialDeathTimer = 60;
-                            let fallImpactFactor = (b.source === "pistol") ? 0.2 : 0.5;
-                            z.fallAngle = Math.atan2(b.dy, b.dx);
-                            z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
                             if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
                         }
-                        bullets.splice(j, 1);
-                        break;
+                    } else { gameOver = true; showGameOverOverlay(); }
+                }
+            } else {
+                z.x += z.fallVector.dx;
+                z.y += z.fallVector.dy;
+                z.fallVector.dx *= 0.95;
+                z.fallVector.dy *= 0.95;
+                z.deathTimer--;
+                if (z.deathTimer <= 0) {
+                    if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                    zombies.splice(i, 1);
+                }
+            }
+        }
+
+        for (let i = zombies.length - 1; i >= 0; i--) {
+            let z = zombies[i];
+            if (!z.dying) {
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    let b = bullets[j];
+                    let collisionTolerance = (b.source === "flamethrower") ? 10 : 3;
+                    if (distance(z.x, z.y, b.x, b.y) < z.radius + collisionTolerance) {
+                        if (b.source === "flamethrower") {
+                            z.health -= 0.5 * player.damageMultiplier;
+                            if (z.health <= 0 && !z.dying) {
+                                zombieKills++;
+                                spawnBloodSplatter(z.x, z.y);
+                                z.dying = true;
+                                z.deathTimer = 60;
+                                z.initialDeathTimer = 60;
+                                z.fallAngle = 0;
+                                z.fallVector = { dx: 0, dy: 2 };
+                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            }
+                            bullets.splice(j, 1);
+                            continue;
+                        }
+                        else if (b.source === "crossbow") {
+                            let baseDamage = 4;
+                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
+                                baseDamage *= 1.5;
+                                if (!z.headDecapitated) {
+                                    z.headDecapitated = true;
+                                    decapitatedHeads.push({
+                                        x: z.x,
+                                        y: z.y - 15,
+                                        vx: b.dx * 0.8,
+                                        vy: b.dy * 0.8,
+                                        rotation: 0,
+                                        angularVelocity: 0.1,
+                                        life: 120,
+                                        maxLife: 120
+                                    });
+                                    spawnBloodSplatter(z.x, z.y - 15);
+                                }
+                                playZombieHeadshotSound();
+                            } else {
+                                playZombieHitSound();
+                            }
+                            z.health -= baseDamage * player.damageMultiplier;
+                            bullets.splice(j, 1);
+                            if (z.health <= 0 && !z.dying) {
+                                zombieKills++;
+                                spawnBloodSplatter(z.x, z.y);
+                                z.dying = true;
+                                z.deathTimer = 60;
+                                z.initialDeathTimer = 60;
+                                let fallImpactFactor = 0.5;
+                                z.fallAngle = Math.atan2(b.dy, b.dx);
+                                z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            }
+                            break;
+                        }
+                        else if (b.source === "laser") {
+                            let baseDamage = 8;
+                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
+                                baseDamage *= 1.5;
+                                if (!z.headDecapitated) {
+                                    z.headDecapitated = true;
+                                    decapitatedHeads.push({
+                                        x: z.x,
+                                        y: z.y - 15,
+                                        vx: b.dx * 0.8,
+                                        vy: b.dy * 0.8,
+                                        rotation: 0,
+                                        angularVelocity: 0.1,
+                                        life: 120,
+                                        maxLife: 120
+                                    });
+                                    spawnBloodSplatter(z.x, z.y - 15);
+                                }
+                                playZombieHeadshotSound();
+                            } else {
+                                playZombieHitSound();
+                            }
+                            z.health -= baseDamage * player.damageMultiplier;
+                            bullets.splice(j, 1);
+                            if (z.health <= 0 && !z.dying) {
+                                zombieKills++;
+                                spawnBloodSplatter(z.x, z.y);
+                                z.dying = true;
+                                z.deathTimer = 60;
+                                z.initialDeathTimer = 60;
+                                let fallImpactFactor = 0.5;
+                                z.fallAngle = Math.atan2(b.dy, b.dx);
+                                z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            }
+                            break;
+                        }
+                        else {
+                            let baseDamage = 0;
+                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
+                                baseDamage = 2;
+                                if (!z.headDecapitated) {
+                                    z.headDecapitated = true;
+                                    decapitatedHeads.push({
+                                        x: z.x,
+                                        y: z.y - 15,
+                                        vx: b.dx * 0.8,
+                                        vy: b.dy * 0.8,
+                                        rotation: 0,
+                                        angularVelocity: 0.1,
+                                        life: 120,
+                                        maxLife: 120
+                                    });
+                                    spawnBloodSplatter(z.x, z.y - 15);
+                                }
+                                playZombieHeadshotSound();
+                            } else if (b.y > z.y + 5) {
+                                baseDamage = 1;
+                                z.crawling = true;
+                                playZombieHitSound();
+                            } else {
+                                baseDamage = 1;
+                                playZombieHitSound();
+                            }
+                            // NEW: ZOMBIE LIMB EFFECT
+                            if (!z.headDecapitated) {
+                                if (b.x < z.x && !z.leftArmDetached) {
+                                    z.leftArmDetached = true;
+                                    detachedLimbs.push({
+                                        type: 'leftArm',
+                                        x: z.x - 15,
+                                        y: z.y,
+                                        vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
+                                        vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
+                                        rotation: 0,
+                                        angularVelocity: (Math.random() - 0.5) * 0.2,
+                                        life: 120,
+                                        maxLife: 120
+                                    });
+                                } else if (b.x >= z.x && !z.rightArmDetached) {
+                                    z.rightArmDetached = true;
+                                    detachedLimbs.push({
+                                        type: 'rightArm',
+                                        x: z.x + 15,
+                                        y: z.y,
+                                        vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
+                                        vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
+                                        rotation: 0,
+                                        angularVelocity: (Math.random() - 0.5) * 0.2,
+                                        life: 120,
+                                        maxLife: 120
+                                    });
+                                }
+                            }
+                            let damage = baseDamage * player.damageMultiplier;
+                            if (Math.random() < player.critChance) damage *= 2;
+                            z.health -= damage;
+                            if (player.explosiveRounds) {
+                                for (let k = 0; k < zombies.length; k++) {
+                                    let z2 = zombies[k];
+                                    if (z2 !== z && distance(b.x, b.y, z2.x, z2.y) < 30)
+                                        z2.health -= damage * 0.5;
+                                }
+                            }
+                            if (z.health <= 0 && !z.dying) {
+                                zombieKills++;
+                                spawnBloodSplatter(z.x, z.y);
+                                z.dying = true;
+                                z.deathTimer = 60;
+                                z.initialDeathTimer = 60;
+                                let fallImpactFactor = (b.source === "pistol") ? 0.2 : 0.5;
+                                z.fallAngle = Math.atan2(b.dy, b.dx);
+                                z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            }
+                            bullets.splice(j, 1);
+                            break;
+                        }
                     }
                 }
             }
         }
-    }
 
-    for (let i = decapitatedHeads.length - 1; i >= 0; i--) {
-        let head = decapitatedHeads[i];
-        head.x += head.vx;
-        head.y += head.vy;
-        head.rotation += head.angularVelocity;
-        head.vx *= 0.98;
-        head.vy *= 0.98;
-        head.life--;
-        if (head.life <= 0) decapitatedHeads.splice(i, 1);
-    }
+        for (let i = decapitatedHeads.length - 1; i >= 0; i--) {
+            let head = decapitatedHeads[i];
+            head.x += head.vx;
+            head.y += head.vy;
+            head.rotation += head.angularVelocity;
+            head.vx *= 0.98;
+            head.vy *= 0.98;
+            head.life--;
+            if (head.life <= 0) decapitatedHeads.splice(i, 1);
+        }
 
-    updateCurrencyDrops();
-    updateParticles();
+        // NEW: Update detached limbs.
+        for (let i = detachedLimbs.length - 1; i >= 0; i--) {
+            let limb = detachedLimbs[i];
+            limb.x += limb.vx;
+            limb.y += limb.vy;
+            limb.rotation += limb.angularVelocity;
+            limb.vx *= 0.98;
+            limb.vy *= 0.98;
+            limb.life--;
+            if (limb.life <= 0) detachedLimbs.splice(i, 1);
+        }
 
-    // Update laser beams: Remove beams that have expired.
-    for (let i = laserBeams.length - 1; i >= 0; i--) {
-        if (Date.now() - laserBeams[i].spawnTime > laserBeams[i].duration) {
-            laserBeams.splice(i, 1);
+        updateCurrencyDrops();
+        updateParticles();
+
+        // Update laser beams.
+        for (let i = laserBeams.length - 1; i >= 0; i--) {
+            if (Date.now() - laserBeams[i].spawnTime > laserBeams[i].duration) {
+                laserBeams.splice(i, 1);
+            }
+        }
+
+        if (zombieKills >= shopThreshold && !shopOpen) {
+            showShop();
         }
     }
 
-    if (zombieKills >= shopThreshold && !shopOpen) {
-        showShop();
-    }
-}
+    // ---------------------
+    // DRAW FUNCTIONS
+    // ---------------------
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        drawPowerUps();
+        if (gameMode === "god") {
+            ctx.save();
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "yellow";
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255, 255, 0, 0.2)";
+            ctx.fill();
+            ctx.restore();
+        }
+        drawPlayer();
+        for (let b of bullets) {
+            if (b.source === "flamethrower") continue;
+            if (b.source === "rocket") {
+                let rocketAngle = Math.atan2(b.dy, b.dx);
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(rocketAngle);
+                ctx.fillStyle = "black";
+                ctx.beginPath();
+                ctx.moveTo(-12, -4);
+                ctx.lineTo(0, -2);
+                ctx.quadraticCurveTo(14, 1, 0, 4);
+                ctx.lineTo(-12, 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+            } else {
+                let bulletAngle = Math.atan2(b.dy, b.dx);
+                let pulse = 1 + 0.5 * Math.abs(Math.sin((Date.now() - b.spawnTime) * 0.02));
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(bulletAngle);
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = pulse * 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-8, 0);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+        for (let z of zombies) { drawZombie(z); }
+        drawParticles();
+        for (let head of decapitatedHeads) {
+            ctx.save();
+            ctx.translate(head.x, head.y);
+            ctx.rotate(head.rotation);
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "black";
+            ctx.stroke();
+            ctx.restore();
+        }
+        // NEW: Draw detached limbs.
+        for (let limb of detachedLimbs) {
+            ctx.save();
+            ctx.translate(limb.x, limb.y);
+            ctx.rotate(limb.rotation);
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(15, 0);
+            ctx.stroke();
+            ctx.restore();
+        }
+        drawCurrencyDrops();
 
-// ---------------------
-// DRAW FUNCTIONS
-// ---------------------
-function draw() {
-    ctx.clearRect(0, 0, width, height);
-    drawPowerUps();
-    if (gameMode === "god") {
+        // Draw active laser beams.
+        for (let beam of laserBeams) {
+            let beamLength = Math.sqrt(width * width + height * height);
+            let endX = beam.x + Math.cos(beam.angle) * beamLength;
+            let endY = beam.y + Math.sin(beam.angle) * beamLength;
+            ctx.save();
+            ctx.strokeStyle = "cyan";
+            ctx.lineWidth = 5;
+            ctx.shadowColor = "cyan";
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.moveTo(beam.x, beam.y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        drawHUD();
         ctx.save();
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "yellow";
         ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 255, 0, 0.2)";
+        ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
         ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "white";
+        ctx.stroke();
         ctx.restore();
     }
-    drawPlayer();
-    for (let b of bullets) {
-        if (b.source === "flamethrower") continue;
-      
-        if (b.source === "rocket") {
-          // Draw the rocket bullet as a rocket shape.
-          let rocketAngle = Math.atan2(b.dy, b.dx);
-          ctx.save();
-          ctx.translate(b.x, b.y);
-          ctx.rotate(rocketAngle);
-          
-          // Draw rocket body (a simple rocket shape):
-          // You can adjust the points to change the shape.
-          ctx.fillStyle = "black";
-          ctx.beginPath();
-          ctx.moveTo(-12, -4);   // back left
-          ctx.lineTo(0, -2);     // top of rocket tail
-          ctx.lineTo(12, 0);     // rocket nose (point)
-          ctx.lineTo(0, 2);      // bottom of rocket tail
-          ctx.lineTo(-12, 4);    // back right
-          ctx.closePath();
-          ctx.fill();
-          
-          // Draw a black outline for the rocket.
-          ctx.strokeStyle = "black";
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.restore();
+
+    function drawPlayer() {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        if (player.powerUps.shield) {
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
+            ctx.strokeStyle = "blue";
+            ctx.stroke();
+            ctx.strokeStyle = "black";
+        }
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - 15, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y - 5);
+        ctx.lineTo(player.x, player.y + 15);
+        ctx.stroke();
+        let leftArmSwing = Math.sin(player.walkCycle) * 3;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.x - 15 + leftArmSwing, player.y);
+        ctx.stroke();
+        const armLength = 15;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.x + Math.cos(player.angle) * armLength, player.y + Math.sin(player.angle) * armLength);
+        ctx.stroke();
+        let leftLegOffset = Math.sin(player.walkCycle) * 5;
+        let rightLegOffset = Math.sin(player.walkCycle + Math.PI) * 5;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y + 15);
+        ctx.lineTo(player.x - 10 + leftLegOffset, player.y + 30);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y + 15);
+        ctx.lineTo(player.x + 10 + rightLegOffset, player.y + 30);
+        ctx.stroke();
+        const gunStartX = player.x + Math.cos(player.angle) * (armLength - player.recoil);
+        const gunStartY = player.y + Math.sin(player.angle) * (armLength - player.recoil);
+        ctx.save();
+        ctx.translate(gunStartX, gunStartY);
+        ctx.rotate(player.angle);
+        if (player.weapon === "shotgun") {
+            const gunLength = 30;
+            const gunThickness = 8;
+            ctx.fillStyle = "saddlebrown";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "flamethrower") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "orange";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "crossbow") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "peru";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "laser") {
+            const gunLength = 30;
+            const gunThickness = 6;
+            ctx.fillStyle = "cyan";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
         } else {
-          // Existing bullet drawing code for other weapons.
-          let bulletAngle = Math.atan2(b.dy, b.dx);
-          let pulse = 1 + 0.5 * Math.abs(Math.sin((Date.now() - b.spawnTime) * 0.02));
-          ctx.save();
-          ctx.translate(b.x, b.y);
-          ctx.rotate(bulletAngle);
-          ctx.strokeStyle = "black";
-          ctx.lineWidth = pulse * 2;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(-8, 0);
-          ctx.stroke();
-          ctx.restore();
+            const gunLength = 20;
+            const gunThickness = 6;
+            ctx.fillStyle = "darkgray";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
         }
-      }
-    for (let z of zombies) { drawZombie(z); }
-    drawParticles();
-    for (let head of decapitatedHeads) {
-        ctx.save();
-        ctx.translate(head.x, head.y);
-        ctx.rotate(head.rotation);
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.arc(0, 0, 10, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "black";
-        ctx.stroke();
         ctx.restore();
-    }
-    drawCurrencyDrops();
+        if (player.reloading) {
+            let reloadElapsed = Date.now() - player.reloadStart;
+            let progress = Math.min(reloadElapsed / player.reloadDuration, 1);
+            let barWidth = 50;
+            let barHeight = 8;
+            let barX = player.x - barWidth / 2;
+            let barY = player.y - 40;
 
-    // Draw active laser beams.
-    for (let beam of laserBeams) {
-        let beamLength = Math.sqrt(width * width + height * height);
-        let endX = beam.x + Math.cos(beam.angle) * beamLength;
-        let endY = beam.y + Math.sin(beam.angle) * beamLength;
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+            ctx.fillStyle = player.penaltyActive ? "grey" : "green";
+            ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+            const QUICK_RELOAD_ZONE_START = 0.3;
+            const QUICK_RELOAD_ZONE_END = 0.4;
+            let targetX = barX + barWidth * QUICK_RELOAD_ZONE_START;
+            let targetWidth = barWidth * (QUICK_RELOAD_ZONE_END - QUICK_RELOAD_ZONE_START);
+            ctx.fillStyle = "black";
+            ctx.fillRect(targetX, barY, targetWidth, barHeight);
+            let pointerX = barX + barWidth * progress;
+            ctx.strokeStyle = "red";
+            ctx.beginPath();
+            ctx.moveTo(pointerX, barY);
+            ctx.lineTo(pointerX, barY + barHeight);
+            ctx.stroke();
+        }
+
+        if (player.weapon === "crossbow" && player.crossbowReloading) {
+            let reloadElapsed = Date.now() - player.crossbowReloadStart;
+            let progress = Math.min(reloadElapsed / player.crossbowReloadTime, 1);
+            let barWidth = 50;
+            let barHeight = 8;
+            let barX = player.x - barWidth / 2;
+            let barY = player.y - 40;
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+            ctx.fillStyle = "orange";
+            ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+        }
+    }
+
+    function drawZombie(z) {
+        ctx.strokeStyle = z.elite ? "purple" : "#330000";
+        ctx.lineWidth = 2;
         ctx.save();
-        ctx.strokeStyle = "cyan";
-        ctx.lineWidth = 5;
-        ctx.shadowColor = "cyan";
-        ctx.shadowBlur = 20;
+        ctx.translate(z.x, z.y);
+        if (z.dying) { ctx.rotate(z.fallAngle); ctx.globalAlpha = z.deathTimer / z.initialDeathTimer; }
+        if (!z.headDecapitated) {
+            ctx.beginPath();
+            ctx.arc(0, -15, 10, 0, Math.PI * 2);
+            ctx.stroke();
+        }
         ctx.beginPath();
-        ctx.moveTo(beam.x, beam.y);
-        ctx.lineTo(endX, endY);
+        ctx.moveTo(0, -5);
+        ctx.lineTo(0, 15);
         ctx.stroke();
+        // Draw arms only if not detached.
+        ctx.beginPath();
+        if (!z.leftArmDetached) {
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-15, 0);
+        }
+        if (!z.rightArmDetached) {
+            ctx.moveTo(0, 0);
+            ctx.lineTo(15, 0);
+        }
+        ctx.stroke();
+        if (z.crawling) {
+            ctx.beginPath();
+            ctx.moveTo(0, 15);
+            ctx.lineTo(-5, 20);
+            ctx.moveTo(0, 15);
+            ctx.lineTo(5, 20);
+            ctx.stroke();
+        } else {
+            ctx.beginPath();
+            let leftLegOffset = Math.sin(z.walkCycle) * 5;
+            let rightLegOffset = Math.sin(z.walkCycle + Math.PI) * 5;
+            ctx.moveTo(0, 15);
+            ctx.lineTo(-10 + leftLegOffset, 30);
+            ctx.moveTo(0, 15);
+            ctx.lineTo(10 + rightLegOffset, 30);
+            ctx.stroke();
+        }
         ctx.restore();
+        ctx.globalAlpha = 1;
     }
 
-    drawHUD();
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "white";
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawPlayer() {
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
-    if (player.powerUps.shield) {
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
-        ctx.strokeStyle = "blue";
-        ctx.stroke();
-        ctx.strokeStyle = "black";
-    }
-    ctx.beginPath();
-    ctx.arc(player.x, player.y - 15, 10, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y - 5);
-    ctx.lineTo(player.x, player.y + 15);
-    ctx.stroke();
-    let leftArmSwing = Math.sin(player.walkCycle) * 3;
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y);
-    ctx.lineTo(player.x - 15 + leftArmSwing, player.y);
-    ctx.stroke();
-    const armLength = 15;
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y);
-    ctx.lineTo(player.x + Math.cos(player.angle) * armLength, player.y + Math.sin(player.angle) * armLength);
-    ctx.stroke();
-    let leftLegOffset = Math.sin(player.walkCycle) * 5;
-    let rightLegOffset = Math.sin(player.walkCycle + Math.PI) * 5;
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y + 15);
-    ctx.lineTo(player.x - 10 + leftLegOffset, player.y + 30);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y + 15);
-    ctx.lineTo(player.x + 10 + rightLegOffset, player.y + 30);
-    ctx.stroke();
-    const gunStartX = player.x + Math.cos(player.angle) * (armLength - player.recoil);
-    const gunStartY = player.y + Math.sin(player.angle) * (armLength - player.recoil);
-    ctx.save();
-    ctx.translate(gunStartX, gunStartY);
-    ctx.rotate(player.angle);
-    if (player.weapon === "shotgun") {
-        const gunLength = 30;
-        const gunThickness = 8;
-        ctx.fillStyle = "saddlebrown";
-        ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
-    } else if (player.weapon === "flamethrower") {
-        const gunLength = 25;
-        const gunThickness = 8;
-        ctx.fillStyle = "orange";
-        ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
-    } else if (player.weapon === "crossbow") {
-        const gunLength = 25;
-        const gunThickness = 8;
-        ctx.fillStyle = "peru";
-        ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
-    } else if (player.weapon === "laser") {
-        const gunLength = 30;
-        const gunThickness = 6;
-        ctx.fillStyle = "cyan";
-        ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
-    } else {
-        const gunLength = 20;
-        const gunThickness = 6;
-        ctx.fillStyle = "darkgray";
-        ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
-    }
-    ctx.restore();
-    if (player.reloading) {
-        let reloadElapsed = Date.now() - player.reloadStart;
-        let progress = Math.min(reloadElapsed / player.reloadDuration, 1);
-        let barWidth = 50;
-        let barHeight = 8;
-        let barX = player.x - barWidth / 2;
-        let barY = player.y - 40;
-
-        // Draw the border of the reload bar.
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(barX, barY, barWidth, barHeight);
-
-        // Use grey if a penalty is active; otherwise, use green.
-        ctx.fillStyle = player.penaltyActive ? "grey" : "green";
-        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
-
-        // Draw the quick reload target zone (a black rectangle) within the reload bar.
-        const QUICK_RELOAD_ZONE_START = 0.3;
-        const QUICK_RELOAD_ZONE_END = 0.4;
-        let targetX = barX + barWidth * QUICK_RELOAD_ZONE_START;
-        let targetWidth = barWidth * (QUICK_RELOAD_ZONE_END - QUICK_RELOAD_ZONE_START);
-        ctx.fillStyle = "black";
-        ctx.fillRect(targetX, barY, targetWidth, barHeight);
-
-        // Draw the moving pointer line (in red) at the current progress.
-        let pointerX = barX + barWidth * progress;
-        ctx.strokeStyle = "red";
-        ctx.beginPath();
-        ctx.moveTo(pointerX, barY);
-        ctx.lineTo(pointerX, barY + barHeight);
-        ctx.stroke();
+    function drawPowerUps() {
+        for (let p of powerUps) {
+            let rectWidth = 40;
+            let rectHeight = 40;
+            let x = p.x - rectWidth / 2;
+            let y = p.y - rectHeight / 2;
+            ctx.fillStyle = powerUpColors[p.type] || "gray";
+            ctx.fillRect(x, y, rectWidth, rectHeight);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(x, y, rectWidth, rectHeight);
+            ctx.fillStyle = "white";
+            ctx.font = "10px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(powerUpNames[p.type] || "", p.x, p.y);
+        }
     }
 
-
-
-
-    if (player.weapon === "crossbow" && player.crossbowReloading) {
-        let reloadElapsed = Date.now() - player.crossbowReloadStart;
-        let progress = Math.min(reloadElapsed / player.crossbowReloadTime, 1);
-        let barWidth = 50;
-        let barHeight = 8;
-        let barX = player.x - barWidth / 2;
-        let barY = player.y - 40;
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = "orange";
-        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+    function showGameOverOverlay() {
+        const overlay = document.getElementById("gameOverOverlay");
+        let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
+        const elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
+        document.getElementById("finalStats").innerText = "Kills: " + zombieKills + " | Time: " + elapsedTime + "s";
+        overlay.style.display = "flex";
     }
-}
-
-function drawZombie(z) {
-    ctx.strokeStyle = z.elite ? "purple" : "#330000";
-    ctx.lineWidth = 2;
-    ctx.save();
-    ctx.translate(z.x, z.y);
-    if (z.dying) { ctx.rotate(z.fallAngle); ctx.globalAlpha = z.deathTimer / z.initialDeathTimer; }
-    if (!z.headDecapitated) {
-        ctx.beginPath();
-        ctx.arc(0, -15, 10, 0, Math.PI * 2);
-        ctx.stroke();
+      
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
     }
-    ctx.beginPath();
-    ctx.moveTo(0, -5);
-    ctx.lineTo(0, 15);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-15, 0);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(15, 0);
-    ctx.stroke();
-    if (z.crawling) {
-        ctx.beginPath();
-        ctx.moveTo(0, 15);
-        ctx.lineTo(-5, 20);
-        ctx.moveTo(0, 15);
-        ctx.lineTo(5, 20);
-        ctx.stroke();
-    } else {
-        ctx.beginPath();
-        let leftLegOffset = Math.sin(z.walkCycle) * 5;
-        let rightLegOffset = Math.sin(z.walkCycle + Math.PI) * 5;
-        ctx.moveTo(0, 15);
-        ctx.lineTo(-10 + leftLegOffset, 30);
-        ctx.moveTo(0, 15);
-        ctx.lineTo(10 + rightLegOffset, 30);
-        ctx.stroke();
-    }
-    ctx.restore();
-    ctx.globalAlpha = 1;
-}
 
-function drawPowerUps() {
-    for (let p of powerUps) {
-        let rectWidth = 40;
-        let rectHeight = 40;
-        let x = p.x - rectWidth / 2;
-        let y = p.y - rectHeight / 2;
-        ctx.fillStyle = powerUpColors[p.type] || "gray";
-        ctx.fillRect(x, y, rectWidth, rectHeight);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(x, y, rectWidth, rectHeight);
-        ctx.fillStyle = "white";
-        ctx.font = "10px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(powerUpNames[p.type] || "", p.x, p.y);
-    }
-}
+    gameLoop();
 
-function showGameOverOverlay() {
-    const overlay = document.getElementById("gameOverOverlay");
-    let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
-const elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
-
-    document.getElementById("finalStats").innerText = "Kills: " + zombieKills + " | Time: " + elapsedTime + "s";
-    overlay.style.display = "flex";
-  }
-  
-
-function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-}
-
-gameLoop();
-
-// ---------------------
-// TEST MODE MENU FUNCTIONS
-// ---------------------
-function openTestModeMenu() {
-    let container = document.getElementById("testModeItemsContainer");
-    container.innerHTML = "";
-    availableShopItems.forEach(item => {
-        let btn = document.createElement("button");
-        btn.innerHTML = "Test: " + item.name + "<br>" + item.description;
-        btn.style.display = "block";
-        btn.style.margin = "5px auto";
-        btn.addEventListener("click", () => {
-            item.effect();
-            alert(item.name + " effect applied.");
+    // ---------------------
+    // TEST MODE MENU FUNCTIONS
+    // ---------------------
+    function openTestModeMenu() {
+        let container = document.getElementById("testModeItemsContainer");
+        container.innerHTML = "";
+        availableShopItems.forEach(item => {
+            let btn = document.createElement("button");
+            btn.innerHTML = "Test: " + item.name + "<br>" + item.description;
+            btn.style.display = "block";
+            btn.style.margin = "5px auto";
+            btn.addEventListener("click", () => {
+                item.effect();
+                alert(item.name + " effect applied.");
+            });
+            container.appendChild(btn);
         });
-        container.appendChild(btn);
+        document.getElementById("testModeMenuOverlay").style.display = "block";
+    }
+
+    document.getElementById("closeTestModeMenuButton").addEventListener("click", () => {
+        document.getElementById("testModeMenuOverlay").style.display = "none";
     });
-    document.getElementById("testModeMenuOverlay").style.display = "block";
-}
 
-document.getElementById("closeTestModeMenuButton").addEventListener("click", () => {
-    document.getElementById("testModeMenuOverlay").style.display = "none";
-});
-
-document.getElementById("resetTestUpgradesButton").addEventListener("click", () => {
-    player.rapidFireLevel = 0;
-    player.damageMultiplier = 1;
-    player.healthRegenRate = 0;
-    player.extraArmor = 0;
-    player.critChance = 0;
-    player.explosiveRounds = false;
-    player.scoreMultiplier = 1;
-    alert("Upgrades have been reset.");
-});
-
-}) ();
+    document.getElementById("resetTestUpgradesButton").addEventListener("click", () => {
+        player.rapidFireLevel = 0;
+        player.damageMultiplier = 1;
+        player.healthRegenRate = 0;
+        player.extraArmor = 0;
+        player.critChance = 0;
+        player.explosiveRounds = false;
+        player.scoreMultiplier = 1;
+        alert("Upgrades have been reset.");
+    });
+})();
