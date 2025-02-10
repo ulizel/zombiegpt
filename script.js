@@ -1029,55 +1029,61 @@ function spawnBloodSplatter(x, y) {
 // ROCKET EXPLOSION LOGIC
 // ---------------------
 function explodeRocket(rocket) {
-    // Determine the explosion radius based on the rocket’s impact location
-    // and the current mouse aim. For instance, you can make the radius larger
-    // if the mouse is aimed farther away. Here’s one simple approach:
+    // Determine the explosion radius based on the rocket’s impact and mouse aim.
     let dx = mouse.x - rocket.x;
     let dy = mouse.y - rocket.y;
-    // Base explosion radius plus an extra amount (clamped)
     let explosionRadius = Math.min(50 + Math.sqrt(dx * dx + dy * dy) / 10, 150);
     
-    // Damage zombies within the blast radius:
+    // Damage zombies within the explosion radius.
     zombies.forEach((z) => {
-        if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
-          zombieKills++;
-          z.dying = true;
-          z.deathTimer = 60;
-          z.initialDeathTimer = 60;
-          
-          // Calculate a vector that pushes the zombie away from the explosion center.
-          let impactDx = z.x - rocket.x;
-          let impactDy = z.y - rocket.y;
-          let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
-          if (mag === 0) { mag = 1; }  // Prevent division by zero
-          impactDx /= mag;
-          impactDy /= mag;
-          
-          // Set the fallVector (adjust the multiplier as desired for impact strength)
-          z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
-          z.fallAngle = Math.atan2(impactDy, impactDx);
-          
-          spawnBloodSplatter(z.x, z.y);
-          if (!z.currencyDropped) { 
-            maybeDropCurrency(z.x, z.y, z.elite); 
-            z.currencyDropped = true; 
-          }
+      if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
+        zombieKills++;
+        z.dying = true;
+        z.deathTimer = 60;
+        z.initialDeathTimer = 60;
+        
+        // Calculate a push-away vector.
+        let impactDx = z.x - rocket.x;
+        let impactDy = z.y - rocket.y;
+        let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
+        if (mag === 0) mag = 1;
+        impactDx /= mag;
+        impactDy /= mag;
+        z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
+        z.fallAngle = Math.atan2(impactDy, impactDx);
+        
+        spawnBloodSplatter(z.x, z.y);
+        if (!z.currencyDropped) {
+          maybeDropCurrency(z.x, z.y, z.elite);
+          z.currencyDropped = true;
         }
-      });
-      
+      }
+    });
     
-    // Spawn explosion particles (e.g., fiery particles)
-    for (let i = 0; i < 30; i++) {
+    // Spawn explosion particles.
+    // Increase the number of particles to make the explosion denser.
+    for (let i = 0; i < 50; i++) {  // increased from 30 to 50
       let angle = Math.random() * Math.PI * 2;
-      let speed = Math.random() * 5;
-      spawnParticle(rocket.x, rocket.y,
-                    Math.cos(angle) * speed, Math.sin(angle) * speed,
-                    3, 30, "rgba(255,69,0,ALPHA)"); // Firey-orange particles
+      // Increase the speed range slightly for a more dramatic effect.
+      let speed = Math.random() * 6;
+      // Optionally adjust size and lifetime for a denser look.
+      let size = 3 + Math.random() * 2;    // size between 3 and 5
+      let lifetime = 35 + Math.random() * 15;  // lifetime between 35 and 50 frames
+      // Use a mix of fiery colors by randomly choosing between two color schemes.
+      let color = (Math.random() < 0.5)
+        ? "rgba(255,69,0,ALPHA)"    // fiery orange-red
+        : "rgba(255,140,0,ALPHA)";  // darker orange
+      spawnParticle(rocket.x, rocket.y, Math.cos(angle) * speed, Math.sin(angle) * speed, size, lifetime, color);
     }
     
-    // Play the explosion sound
+    // Optional: Add an explosion flash effect.
+    // Spawn a large, short-lived particle to simulate a flash.
+    spawnParticle(rocket.x, rocket.y, 0, 0, explosionRadius, 10, "rgba(255,255,200,ALPHA)");
+    
+    // Play the explosion sound.
     playExplosionSound();
   }
+  
 
 // ---------------------
 // HUD DRAWING FUNCTION
@@ -1244,17 +1250,37 @@ function update() {
 
     for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
+      
         if (b.source === "rocket") {
-            // Update the rocket's position
+            // Calculate the rocket's current angle.
+            let rocketAngle = Math.atan2(b.dy, b.dx);
+            
+            // Increase tail offset for a more noticeable trail.
+            let tailOffset = 16; 
+            let tailX = b.x - Math.cos(rocketAngle) * tailOffset;
+            let tailY = b.y - Math.sin(rocketAngle) * tailOffset;
+            
+            // Spawn multiple smoke particles each frame to enhance the trail effect.
+            // Adjust the number, size, and lifetime as needed.
+            for (let k = 0; k < 2; k++) {
+              // Slight random offset for a more natural, scattered trail.
+              spawnParticle(
+                tailX + (Math.random() - 0.5) * 4, 
+                tailY + (Math.random() - 0.5) * 4,
+                (Math.random() - 0.5) * 0.5, 
+                (Math.random() - 0.5) * 0.5,
+                4,      // Particle size (increased from 3)
+                40,     // Particle lifetime (increased from 20)
+                "rgba(80,80,80,ALPHA)"  // A darker gray for better contrast.
+              );
+            }
+            
+            // Update the rocket's position.
             b.x += b.dx;
             b.y += b.dy;
             
-            // Spawn a smoke trail particle along the rocket's path:
-            spawnParticle(b.x, b.y, (Math.random()-0.5) * 1, (Math.random()-0.5) * 1, 3, 20, "rgba(128,128,128,ALPHA)");
-            
+            // Check for collision with zombies or off-screen or expired lifetime.
             let exploded = false;
-            
-            // Check collision with zombies:
             for (let j = 0; j < zombies.length; j++) {
               let z = zombies[j];
               if (distance(b.x, b.y, z.x, z.y) < z.radius + 10) {
@@ -1263,19 +1289,16 @@ function update() {
                 break;
               }
             }
-            
-            // If the rocket goes off-screen or its lifetime exceeds a limit (e.g., 3 seconds), explode it:
             if (b.x < 0 || b.x > width || b.y < 0 || b.y > height || Date.now() - b.spawnTime > 3000) {
               explodeRocket(b);
               exploded = true;
             }
-            
             if (exploded) {
               bullets.splice(i, 1);
             }
-            // Continue to next bullet.
-            continue;
+            continue;  // Skip further processing for this bullet.
           }
+          
         b.x += b.dx; b.y += b.dy;
         if (b.source !== "flamethrower")
             spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, "rgba(0,0,0,ALPHA)");
@@ -1544,19 +1567,47 @@ function draw() {
     drawPlayer();
     for (let b of bullets) {
         if (b.source === "flamethrower") continue;
-        let bulletAngle = Math.atan2(b.dy, b.dx);
-        let pulse = 1 + 0.5 * Math.abs(Math.sin((Date.now() - b.spawnTime) * 0.02));
-        ctx.save();
-        ctx.translate(b.x, b.y);
-        ctx.rotate(bulletAngle);
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = pulse * 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(-8, 0);
-        ctx.stroke();
-        ctx.restore();
-    }
+      
+        if (b.source === "rocket") {
+          // Draw the rocket bullet as a rocket shape.
+          let rocketAngle = Math.atan2(b.dy, b.dx);
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(rocketAngle);
+          
+          // Draw rocket body (a simple rocket shape):
+          // You can adjust the points to change the shape.
+          ctx.fillStyle = "black";
+          ctx.beginPath();
+          ctx.moveTo(-12, -4);   // back left
+          ctx.lineTo(0, -2);     // top of rocket tail
+          ctx.lineTo(12, 0);     // rocket nose (point)
+          ctx.lineTo(0, 2);      // bottom of rocket tail
+          ctx.lineTo(-12, 4);    // back right
+          ctx.closePath();
+          ctx.fill();
+          
+          // Draw a black outline for the rocket.
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // Existing bullet drawing code for other weapons.
+          let bulletAngle = Math.atan2(b.dy, b.dx);
+          let pulse = 1 + 0.5 * Math.abs(Math.sin((Date.now() - b.spawnTime) * 0.02));
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(bulletAngle);
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = pulse * 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-8, 0);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
     for (let z of zombies) { drawZombie(z); }
     drawParticles();
     for (let head of decapitatedHeads) {
