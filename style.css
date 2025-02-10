@@ -1,0 +1,134 @@
+/* Remove margins and ensure the canvas fills the screen */
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #222;
+    font-family: sans-serif;
+  }
+  
+  canvas {
+    display: block;
+    background: #838383;
+    /* Darker background */
+    cursor: none;
+    /* Hide the default cursor */
+  }
+  
+  /* Overlay styling for various menus */
+  #instructions,
+  #gameOverOverlay,
+  #mainMenuOverlay,
+  #modesMenuOverlay,
+  #pauseMenuOverlay,
+  #weaponSelectionOverlay,
+  #shopOverlay,
+  #testModeMenuOverlay {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 100;
+    text-align: center;
+  }
+  
+  #instructions {
+    position: absolute;
+    top: 10px;             /* Positions the overlay near the top */
+    left: 50%;             /* Centers horizontally */
+    transform: translateX(-50%);
+    padding: 20px;
+    font-size: 14px;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    text-align: left;      /* Ensures text is aligned left */
+  }
+  
+  #instructions button {
+    margin-top: 5px;
+    cursor: pointer;
+  }
+  
+ /* Responsive Game Over overlay */
+#gameOverOverlay {
+    position: fixed;            /* Covers the entire viewport even on scroll */
+    top: 0;
+    left: 0;
+    width: 100vw;               /* Full viewport width */
+    height: 100vh;              /* Full viewport height */
+    background: rgba(0, 0, 0, 0.85);
+    display: none;              /* Change to "flex" via JS when needed */
+    
+    /* Flexbox centering */
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    /* Remove any inherited centering transforms */
+    transform: none;
+    
+    /* Padding and box-sizing for proper spacing on small screens */
+    padding: 20px;
+    box-sizing: border-box;
+    
+    /* Text styling */
+    color: white;
+    text-align: center;
+    
+    z-index: 1000;
+  }
+  
+  #gameOverOverlay button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  /* Responsive adjustments for smaller screens */
+  @media (max-width: 600px) {
+    #gameOverOverlay h1 {
+      font-size: 24px;
+    }
+    #gameOverOverlay p {
+      font-size: 16px;
+    }
+    #gameOverOverlay button {
+      font-size: 14px;
+      padding: 8px 16px;
+    }
+  }
+  
+  /* Menus: Main Menu, Modes, Pause, Weapon Selection, Shop, Test Mode Menu */
+  #mainMenuOverlay,
+  #modesMenuOverlay,
+  #pauseMenuOverlay,
+  #weaponSelectionOverlay,
+  #shopOverlay,
+  #testModeMenuOverlay {
+    display: none;
+    min-width: 300px;
+  }
+  
+  #pauseMenuOverlay {
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #pauseMenuOverlay button,
+  #shopOverlay button,
+  #testModeMenuOverlay button {
+    margin: 5px 0;
+  }
+  
+  #weaponSelectionOverlay button {
+    margin: 5px;
+  }
+  
