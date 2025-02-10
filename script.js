@@ -193,7 +193,7 @@ document.addEventListener("contextmenu", function (e) {
     // GLOBAL VARIABLES & STATE
     // ---------------------
     let zombieKills = 0;
-    let gameStartTime = Date.now();
+    let gameStartTime = 0;
     let totalPausedTime = 0;   // Accumulates total pause duration
     let pauseStartTime = 0;    // Records when a pause starts
 
@@ -342,20 +342,26 @@ document.addEventListener("contextmenu", function (e) {
     // UI Overlay Event Listeners
     // ---------------------
     document.getElementById("startGameButton").addEventListener("click", () => {
+        // Set game start time when the game begins and reset paused time.
+        gameStartTime = Date.now();
+        totalPausedTime = 0;
+      
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
         else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+      
         gameState = "playing";
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "none";
         document.getElementById("instructions").style.display = "none";  // hide controls overlay when game starts
-
+      
         if (gameMode === "test") {
-            document.getElementById("weaponSelectionOverlay").style.display = "block";
-            document.getElementById("weaponSelectButton").style.display = "block";
-            document.getElementById("testModeMenuButton").style.display = "block";
+          document.getElementById("weaponSelectionOverlay").style.display = "block";
+          document.getElementById("weaponSelectButton").style.display = "block";
+          document.getElementById("testModeMenuButton").style.display = "block";
         }
-    });
+      });
+      
     document.getElementById("modesButton").addEventListener("click", () => {
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "block";
@@ -1104,7 +1110,9 @@ function drawHUD() {
     if (player.critChance > 0) lines.push("Crit Chance: " + (player.critChance * 100).toFixed(0) + "%");
     if (player.explosiveRounds) lines.push("Explosive Rounds: On");
     if (player.scoreMultiplier > 1) lines.push("Score Multiplier: x" + player.scoreMultiplier);
-    let elapsedTime = Math.floor((Date.now() - gameStartTime - totalPausedTime) / 1000);
+    let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
+let elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
+
     lines.push("Kills: " + zombieKills);
     lines.push("Time: " + elapsedTime + "s");
     ctx.save();
@@ -1785,10 +1793,13 @@ function drawPowerUps() {
 
 function showGameOverOverlay() {
     const overlay = document.getElementById("gameOverOverlay");
-    const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
+const elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
+
     document.getElementById("finalStats").innerText = "Kills: " + zombieKills + " | Time: " + elapsedTime + "s";
     overlay.style.display = "flex";
-}
+  }
+  
 
 function gameLoop() {
     update();
