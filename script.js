@@ -484,18 +484,18 @@ document.getElementById("instructions").style.display = "none";
       items.forEach(item => {
         let base;
         switch (item.id) {
-          case "extraHealth": base = Math.floor(Math.random() * 40) + 40; break;
-          case "moneyMagnet": base = Math.floor(Math.random() * 40) + 80; break;
-          case "extraArmor": base = Math.floor(Math.random() * 60) + 120; break;
-          case "rapidFire": base = Math.floor(Math.random() * 40) + 50; break;
-          case "damageBoost": base = Math.floor(Math.random() * 40) + 50; break;
-          case "ammoCapacity": base = Math.floor(Math.random() * 40) + 60; break;
-          case "healthRegen": base = Math.floor(Math.random() * 40) + 70; break;
-          case "explosiveRounds": base = Math.floor(Math.random() * 40) + 80; break;
-          case "freezeGrenade": base = Math.floor(Math.random() * 40) + 90; break;
-          case "critChance": base = Math.floor(Math.random() * 40) + 100; break;
-          case "scoreMultiplier": base = Math.floor(Math.random() * 40) + 110; break;
-          default: base = 50;
+          case "extraHealth": base = 25; break;
+          case "moneyMagnet": base = 25; break;
+          case "extraArmor": base = 23; break;
+          case "rapidFire": base = 10; break;
+          case "damageBoost": base = 20; break;
+          case "ammoCapacity": base = 20; break;
+          case "healthRegen": base = 50; break;
+          case "explosiveRounds": base = 50; break;
+          case "freezeGrenade": base = 50; break;
+          case "critChance": base = 25; break;
+          case "scoreMultiplier": 20; break;
+          default: base = 1;
         }
         item.price = Math.floor(base * shopPriceMultiplier);
       });
