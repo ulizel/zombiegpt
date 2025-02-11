@@ -2,7 +2,7 @@
 https://ulizel.github.io/zombiegbt/
 
 # zombiegbt
-A top down rogue zombie shooter game made using Chatgbt and HTML5.
+A top down rogue zombie shooter game made using Chatgpt and HTML5.
 
 This is my first game and I have no coding experience. 
 
