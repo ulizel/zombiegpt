@@ -52,7 +52,7 @@ document.addEventListener("contextmenu", function (e) {
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.3);
     }
-      
+
     function playExplosionSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -65,7 +65,7 @@ document.addEventListener("contextmenu", function (e) {
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.5);
     }
-      
+
     function playZombieHitSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -344,23 +344,23 @@ document.addEventListener("contextmenu", function (e) {
         // Set game start time when the game begins and reset paused time.
         gameStartTime = Date.now();
         totalPausedTime = 0;
-      
+
         if (canvas.requestFullscreen) canvas.requestFullscreen();
         else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
         else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
-      
+
         gameState = "playing";
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "none";
         document.getElementById("instructions").style.display = "none";  // hide controls overlay when game starts
-      
+
         if (gameMode === "test") {
-          document.getElementById("weaponSelectionOverlay").style.display = "block";
-          document.getElementById("weaponSelectButton").style.display = "block";
-          document.getElementById("testModeMenuButton").style.display = "block";
+            document.getElementById("weaponSelectionOverlay").style.display = "block";
+            document.getElementById("weaponSelectButton").style.display = "block";
+            document.getElementById("testModeMenuButton").style.display = "block";
         }
     });
-      
+
     document.getElementById("modesButton").addEventListener("click", () => {
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "block";
@@ -862,24 +862,24 @@ document.addEventListener("contextmenu", function (e) {
             }
             let rocketSpeed = 10; // Rockets are slower than pistol bullets.
             let rocket = {
-              x: player.x,
-              y: player.y,
-              dx: Math.cos(angle) * rocketSpeed,
-              dy: Math.sin(angle) * rocketSpeed,
-              spawnTime: Date.now(),
-              source: "rocket"
+                x: player.x,
+                y: player.y,
+                dx: Math.cos(angle) * rocketSpeed,
+                dy: Math.sin(angle) * rocketSpeed,
+                spawnTime: Date.now(),
+                source: "rocket"
             };
             bullets.push(rocket);
             player.rocketAmmo--;
             playRocketLaunchSound();
             spawnParticle(
-              player.x + Math.cos(angle) * 20,
-              player.y + Math.sin(angle) * 20,
-              (Math.random() - 0.5) * 2,
-              (Math.random() - 0.5) * 2,
-              8,
-              15,
-              "rgba(255,140,0,ALPHA)"
+                player.x + Math.cos(angle) * 20,
+                player.y + Math.sin(angle) * 20,
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                8,
+                15,
+                "rgba(255,140,0,ALPHA)"
             );
             player.lastShotTime = Date.now();
         }
@@ -974,9 +974,18 @@ document.addEventListener("contextmenu", function (e) {
             walkCycle: Math.random() * Math.PI * 2,
             health: 1,
             headDecapitated: false,
-            leftArmDetached: false,    // NEW: left arm status
-            rightArmDetached: false,   // NEW: right arm status
-            currencyDropped: false
+            leftArmDetached: false,
+            rightArmDetached: false,
+            leftLegDetached: false,  // NEW: Track left leg
+            rightLegDetached: false, // NEW: Track right leg
+            currencyDropped: false,
+            limbs: { // NEW: Store limb states in a nested object.
+                head: { attached: true, x: 0, y: -15, radius: 10 }, // Relative positions
+                leftArm: { attached: true, x: -15, y: 0, radius: 5 },
+                rightArm: { attached: true, x: 15, y: 0, radius: 5 },
+                leftLeg: { attached: true, x: -10, y: 30, radius: 5 },
+                rightLeg: { attached: true, x: 10, y: 30, radius: 5 }
+            }
         };
         if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 6; }
         else { zombie.elite = false; zombie.health = 2; }
@@ -1023,37 +1032,37 @@ document.addEventListener("contextmenu", function (e) {
         let dx = mouse.x - rocket.x;
         let dy = mouse.y - rocket.y;
         let explosionRadius = Math.min(50 + Math.sqrt(dx * dx + dy * dy) / 10, 150);
-        
+
         zombies.forEach((z) => {
-          if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
-            zombieKills++;
-            z.dying = true;
-            z.deathTimer = 60;
-            z.initialDeathTimer = 60;
-            let impactDx = z.x - rocket.x;
-            let impactDy = z.y - rocket.y;
-            let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
-            if (mag === 0) mag = 1;
-            impactDx /= mag;
-            impactDy /= mag;
-            z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
-            z.fallAngle = Math.atan2(impactDy, impactDx);
-            spawnBloodSplatter(z.x, z.y);
-            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-          }
+            if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
+                zombieKills++;
+                z.dying = true;
+                z.deathTimer = 60;
+                z.initialDeathTimer = 60;
+                let impactDx = z.x - rocket.x;
+                let impactDy = z.y - rocket.y;
+                let mag = Math.sqrt(impactDx * impactDx + impactDy * impactDy);
+                if (mag === 0) mag = 1;
+                impactDx /= mag;
+                impactDy /= mag;
+                z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
+                z.fallAngle = Math.atan2(impactDy, impactDx);
+                spawnBloodSplatter(z.x, z.y);
+                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+            }
         });
-        
+
         for (let i = 0; i < 50; i++) {
-          let angle = Math.random() * Math.PI * 2;
-          let speed = Math.random() * 6;
-          let size = 3 + Math.random() * 2;
-          let lifetime = 35 + Math.random() * 15;
-          let color = (Math.random() < 0.5)
-            ? "rgba(255,69,0,ALPHA)"
-            : "rgba(255,140,0,ALPHA)";
-          spawnParticle(rocket.x, rocket.y, Math.cos(angle) * speed, Math.sin(angle) * speed, size, lifetime, color);
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * 6;
+            let size = 3 + Math.random() * 2;
+            let lifetime = 35 + Math.random() * 15;
+            let color = (Math.random() < 0.5)
+                ? "rgba(255,69,0,ALPHA)"
+                : "rgba(255,140,0,ALPHA)";
+            spawnParticle(rocket.x, rocket.y, Math.cos(angle) * speed, Math.sin(angle) * speed, size, lifetime, color);
         }
-        
+
         spawnParticle(rocket.x, rocket.y, 0, 0, explosionRadius, 10, "rgba(255,255,200,ALPHA)");
         playExplosionSound();
     }
@@ -1224,37 +1233,37 @@ document.addEventListener("contextmenu", function (e) {
 
             if (b.source === "rocket") {
                 let rocketAngle = Math.atan2(b.dy, b.dx);
-                let tailOffset = 16; 
+                let tailOffset = 16;
                 let tailX = b.x - Math.cos(rocketAngle) * tailOffset;
                 let tailY = b.y - Math.sin(rocketAngle) * tailOffset;
                 for (let k = 0; k < 2; k++) {
-                  spawnParticle(
-                    tailX + (Math.random() - 0.5) * 4, 
-                    tailY + (Math.random() - 0.5) * 4,
-                    (Math.random() - 0.5) * 0.5, 
-                    (Math.random() - 0.5) * 0.5,
-                    4,
-                    40,
-                    "rgba(80,80,80,ALPHA)"
-                  );
+                    spawnParticle(
+                        tailX + (Math.random() - 0.5) * 4,
+                        tailY + (Math.random() - 0.5) * 4,
+                        (Math.random() - 0.5) * 0.5,
+                        (Math.random() - 0.5) * 0.5,
+                        4,
+                        40,
+                        "rgba(80,80,80,ALPHA)"
+                    );
                 }
                 b.x += b.dx;
                 b.y += b.dy;
                 let exploded = false;
                 for (let j = 0; j < zombies.length; j++) {
-                  let z = zombies[j];
-                  if (distance(b.x, b.y, z.x, z.y) < z.radius + 10) {
-                    explodeRocket(b);
-                    exploded = true;
-                    break;
-                  }
+                    let z = zombies[j];
+                    if (distance(b.x, b.y, z.x, z.y) < z.radius + 10) {
+                        explodeRocket(b);
+                        exploded = true;
+                        break;
+                    }
                 }
                 if (b.x < 0 || b.x > width || b.y < 0 || b.y > height || Date.now() - b.spawnTime > 3000) {
-                  explodeRocket(b);
-                  exploded = true;
+                    explodeRocket(b);
+                    exploded = true;
                 }
                 if (exploded) {
-                  bullets.splice(i, 1);
+                    bullets.splice(i, 1);
                 }
                 continue;
             }
@@ -1336,166 +1345,65 @@ document.addEventListener("contextmenu", function (e) {
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     let b = bullets[j];
                     let collisionTolerance = (b.source === "flamethrower") ? 10 : 3;
-                    if (distance(z.x, z.y, b.x, b.y) < z.radius + collisionTolerance) {
-                        if (b.source === "flamethrower") {
-                            z.health -= 0.5 * player.damageMultiplier;
-                            if (z.health <= 0 && !z.dying) {
-                                zombieKills++;
-                                spawnBloodSplatter(z.x, z.y);
-                                z.dying = true;
-                                z.deathTimer = 60;
-                                z.initialDeathTimer = 60;
-                                z.fallAngle = 0;
-                                z.fallVector = { dx: 0, dy: 2 };
-                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                            }
-                            bullets.splice(j, 1);
-                            continue;
-                        }
-                        else if (b.source === "crossbow") {
-                            let baseDamage = 4;
-                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                                baseDamage *= 1.5;
-                                if (!z.headDecapitated) {
-                                    z.headDecapitated = true;
-                                    decapitatedHeads.push({
-                                        x: z.x,
-                                        y: z.y - 15,
-                                        vx: b.dx * 0.8,
-                                        vy: b.dy * 0.8,
-                                        rotation: 0,
-                                        angularVelocity: 0.1,
-                                        life: 120,
-                                        maxLife: 120
-                                    });
-                                    spawnBloodSplatter(z.x, z.y - 15);
-                                }
-                                playZombieHeadshotSound();
-                            } else {
-                                playZombieHitSound();
-                            }
-                            z.health -= baseDamage * player.damageMultiplier;
-                            bullets.splice(j, 1);
-                            if (z.health <= 0 && !z.dying) {
-                                zombieKills++;
-                                spawnBloodSplatter(z.x, z.y);
-                                z.dying = true;
-                                z.deathTimer = 60;
-                                z.initialDeathTimer = 60;
-                                let fallImpactFactor = 0.5;
-                                z.fallAngle = Math.atan2(b.dy, b.dx);
-                                z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
-                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                            }
-                            break;
-                        }
-                        else if (b.source === "laser") {
-                            let baseDamage = 8;
-                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                                baseDamage *= 1.5;
-                                if (!z.headDecapitated) {
-                                    z.headDecapitated = true;
-                                    decapitatedHeads.push({
-                                        x: z.x,
-                                        y: z.y - 15,
-                                        vx: b.dx * 0.8,
-                                        vy: b.dy * 0.8,
-                                        rotation: 0,
-                                        angularVelocity: 0.1,
-                                        life: 120,
-                                        maxLife: 120
-                                    });
-                                    spawnBloodSplatter(z.x, z.y - 15);
-                                }
-                                playZombieHeadshotSound();
-                            } else {
-                                playZombieHitSound();
-                            }
-                            z.health -= baseDamage * player.damageMultiplier;
-                            bullets.splice(j, 1);
-                            if (z.health <= 0 && !z.dying) {
-                                zombieKills++;
-                                spawnBloodSplatter(z.x, z.y);
-                                z.dying = true;
-                                z.deathTimer = 60;
-                                z.initialDeathTimer = 60;
-                                let fallImpactFactor = 0.5;
-                                z.fallAngle = Math.atan2(b.dy, b.dx);
-                                z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
-                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
-                            }
-                            break;
-                        }
-                        else {
+                    // Calculate bullet's position relative to the zombie.
+                    let relativeBulletX = b.x - z.x;
+                    let relativeBulletY = b.y - z.y;
+
+                    // Check each limb for collision.
+                    for (let limbName in z.limbs) {
+                        if (!z.limbs.hasOwnProperty(limbName)) continue; // Skip prototype properties
+
+                        let limb = z.limbs[limbName];
+                        if (!limb.attached) continue; // Skip detached limbs.
+
+                        let limbDistance = distance(relativeBulletX, relativeBulletY, limb.x, limb.y);
+                        if (limbDistance < limb.radius + collisionTolerance) {
+                            // Limb hit!
+
+                            // Detach the limb.
+                            limb.attached = false;
+                            if (limbName === "head") z.headDecapitated = true;
+                            else if (limbName === "leftArm") z.leftArmDetached = true;
+                            else if (limbName === "rightArm") z.rightArmDetached = true;
+                            else if (limbName === "leftLeg") z.leftLegDetached = true;
+                            else if (limbName === "rightLeg") z.rightLegDetached = true;
+
+
+                            // Create detached limb object.
+                            detachedLimbs.push({
+                                type: limbName,
+                                x: z.x + limb.x, // Absolute position
+                                y: z.y + limb.y,
+                                vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
+                                vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
+                                rotation: Math.random() * Math.PI * 2, // Random initial rotation
+                                angularVelocity: (Math.random() - 0.5) * 0.2,
+                                life: 120,
+                                maxLife: 120
+                            });
+
+                            // Blood splatter at the limb's position.
+                            spawnBloodSplatter(z.x + limb.x, z.y + limb.y);
+
+
+                            // --- DAMAGE AND DEATH LOGIC ---
                             let baseDamage = 0;
-                            if (distance(b.x, b.y, z.x, z.y - 15) < 10) {
-                                baseDamage = 2;
-                                if (!z.headDecapitated) {
-                                    z.headDecapitated = true;
-                                    decapitatedHeads.push({
-                                        x: z.x,
-                                        y: z.y - 15,
-                                        vx: b.dx * 0.8,
-                                        vy: b.dy * 0.8,
-                                        rotation: 0,
-                                        angularVelocity: 0.1,
-                                        life: 120,
-                                        maxLife: 120
-                                    });
-                                    spawnBloodSplatter(z.x, z.y - 15);
-                                }
+                            if (limbName === "head") {
+                                baseDamage = 2;  // Headshot damage
                                 playZombieHeadshotSound();
-                            } else if (b.y > z.y + 5) {
-                                baseDamage = 1;
-                                z.crawling = true;
-                                playZombieHitSound();
                             } else {
-                                baseDamage = 1;
+                                baseDamage = 0.5; // Limb damage - less than a body hit
                                 playZombieHitSound();
                             }
-                            // NEW: ZOMBIE LIMB EFFECT
-                            if (!z.headDecapitated) {
-                                if (b.x < z.x && !z.leftArmDetached) {
-                                    z.leftArmDetached = true;
-                                    detachedLimbs.push({
-                                        type: 'leftArm',
-                                        x: z.x - 15,
-                                        y: z.y,
-                                        vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
-                                        vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
-                                        rotation: 0,
-                                        angularVelocity: (Math.random() - 0.5) * 0.2,
-                                        life: 120,
-                                        maxLife: 120
-                                    });
-                                } else if (b.x >= z.x && !z.rightArmDetached) {
-                                    z.rightArmDetached = true;
-                                    detachedLimbs.push({
-                                        type: 'rightArm',
-                                        x: z.x + 15,
-                                        y: z.y,
-                                        vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
-                                        vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
-                                        rotation: 0,
-                                        angularVelocity: (Math.random() - 0.5) * 0.2,
-                                        life: 120,
-                                        maxLife: 120
-                                    });
-                                }
-                            }
+
                             let damage = baseDamage * player.damageMultiplier;
                             if (Math.random() < player.critChance) damage *= 2;
                             z.health -= damage;
-                            if (player.explosiveRounds) {
-                                for (let k = 0; k < zombies.length; k++) {
-                                    let z2 = zombies[k];
-                                    if (z2 !== z && distance(b.x, b.y, z2.x, z2.y) < 30)
-                                        z2.health -= damage * 0.5;
-                                }
-                            }
+
+
                             if (z.health <= 0 && !z.dying) {
                                 zombieKills++;
-                                spawnBloodSplatter(z.x, z.y);
+                                spawnBloodSplatter(z.x, z.y); // More blood for death
                                 z.dying = true;
                                 z.deathTimer = 60;
                                 z.initialDeathTimer = 60;
@@ -1504,10 +1412,40 @@ document.addEventListener("contextmenu", function (e) {
                                 z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
                                 if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
                             }
-                            bullets.splice(j, 1);
-                            break;
+
+                            // Check for crawling.  This is now more accurate.
+                            if (z.limbs.leftLeg.attached === false && z.limbs.rightLeg.attached === false) {
+                                z.crawling = true;
+                            }
+
+                            bullets.splice(j, 1); // Remove the bullet.
+                            break; // Exit the limb check loop after a hit.
                         }
+                    } // End of limb collision check loop.
+
+                    // --- ADD THIS BLOCK FOR GENERAL BODY HITS ---
+                    if (distance(z.x, z.y, b.x, b.y) < z.radius + collisionTolerance) {
+                        //If we reached here, no limb was hit, but the bullet is still within the zombies radius
+                        playZombieHitSound();
+                        let baseDamage = 1; // Body hit damage
+                        let damage = baseDamage * player.damageMultiplier;
+                        if (Math.random() < player.critChance) damage *= 2;
+                        z.health -= damage;
+
+                        if (z.health <= 0 && !z.dying) {
+                            zombieKills++;
+                            spawnBloodSplatter(z.x, z.y); // More blood for death
+                            z.dying = true;
+                            z.deathTimer = 60;
+                            z.initialDeathTimer = 60;
+                            let fallImpactFactor = (b.source === "pistol") ? 0.2 : 0.5;
+                            z.fallAngle = Math.atan2(b.dy, b.dx);
+                            z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                        }
+                        bullets.splice(j, 1); //remove bullet
                     }
+                    // --- END OF ADDED BLOCK ---
                 }
             }
         }
@@ -1616,16 +1554,39 @@ document.addEventListener("contextmenu", function (e) {
             ctx.restore();
         }
         // NEW: Draw detached limbs.
+        // Draw detached limbs.
         for (let limb of detachedLimbs) {
             ctx.save();
             ctx.translate(limb.x, limb.y);
             ctx.rotate(limb.rotation);
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(15, 0);
-            ctx.stroke();
+            ctx.fillStyle = "red"; // Use fillStyle for filled shapes.
+            ctx.strokeStyle = "darkred"; // Darker outline.
+            ctx.lineWidth = 2;
+
+            if (limb.type === "head") {
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else if (limb.type.includes("Arm")) { // Handles both leftArm and rightArm
+                ctx.beginPath();
+                ctx.moveTo(0, -3); // Small rectangle for arm.
+                ctx.lineTo(10, -3);
+                ctx.lineTo(10, 3);
+                ctx.lineTo(0, 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (limb.type.includes("Leg")) { // Handles both leftLeg and rightLeg
+                ctx.beginPath();
+                ctx.moveTo(0, -3);  // Small rectangle for leg.
+                ctx.lineTo(12, -3);
+                ctx.lineTo(12, 3);
+                ctx.lineTo(0, 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
             ctx.restore();
         }
         drawCurrencyDrops();
@@ -1783,28 +1744,38 @@ document.addEventListener("contextmenu", function (e) {
         ctx.lineWidth = 2;
         ctx.save();
         ctx.translate(z.x, z.y);
-        if (z.dying) { ctx.rotate(z.fallAngle); ctx.globalAlpha = z.deathTimer / z.initialDeathTimer; }
-        if (!z.headDecapitated) {
+        if (z.dying) {
+            ctx.rotate(z.fallAngle);
+            ctx.globalAlpha = z.deathTimer / z.initialDeathTimer;
+        }
+
+        // Draw body parts based on limb attachment status.
+        if (z.limbs.head.attached) {
             ctx.beginPath();
-            ctx.arc(0, -15, 10, 0, Math.PI * 2);
+            ctx.arc(z.limbs.head.x, z.limbs.head.y, z.limbs.head.radius, 0, Math.PI * 2);
             ctx.stroke();
         }
+
         ctx.beginPath();
         ctx.moveTo(0, -5);
         ctx.lineTo(0, 15);
         ctx.stroke();
-        // Draw arms only if not detached.
-        ctx.beginPath();
-        if (!z.leftArmDetached) {
+
+        if (z.limbs.leftArm.attached) {
+            ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(-15, 0);
+            ctx.lineTo(z.limbs.leftArm.x, z.limbs.leftArm.y);
+            ctx.stroke();
         }
-        if (!z.rightArmDetached) {
+        if (z.limbs.rightArm.attached) {
+            ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(15, 0);
+            ctx.lineTo(z.limbs.rightArm.x, z.limbs.rightArm.y);
+            ctx.stroke();
         }
-        ctx.stroke();
+
         if (z.crawling) {
+            // Simplified crawling animation.
             ctx.beginPath();
             ctx.moveTo(0, 15);
             ctx.lineTo(-5, 20);
@@ -1812,15 +1783,23 @@ document.addEventListener("contextmenu", function (e) {
             ctx.lineTo(5, 20);
             ctx.stroke();
         } else {
-            ctx.beginPath();
-            let leftLegOffset = Math.sin(z.walkCycle) * 5;
-            let rightLegOffset = Math.sin(z.walkCycle + Math.PI) * 5;
-            ctx.moveTo(0, 15);
-            ctx.lineTo(-10 + leftLegOffset, 30);
-            ctx.moveTo(0, 15);
-            ctx.lineTo(10 + rightLegOffset, 30);
-            ctx.stroke();
+            // Draw legs only if attached, and use walk cycle.
+            if (z.limbs.leftLeg.attached) {
+                ctx.beginPath();
+                let leftLegOffset = Math.sin(z.walkCycle) * 5;
+                ctx.moveTo(0, 15);
+                ctx.lineTo(z.limbs.leftLeg.x + leftLegOffset, z.limbs.leftLeg.y);
+                ctx.stroke();
+            }
+            if (z.limbs.rightLeg.attached) {
+                ctx.beginPath();
+                let rightLegOffset = Math.sin(z.walkCycle + Math.PI) * 5;
+                ctx.moveTo(0, 15);
+                ctx.lineTo(z.limbs.rightLeg.x + rightLegOffset, z.limbs.rightLeg.y);
+                ctx.stroke();
+            }
         }
+
         ctx.restore();
         ctx.globalAlpha = 1;
     }
@@ -1850,7 +1829,7 @@ document.addEventListener("contextmenu", function (e) {
         document.getElementById("finalStats").innerText = "Kills: " + zombieKills + " | Time: " + elapsedTime + "s";
         overlay.style.display = "flex";
     }
-      
+
     function gameLoop() {
         update();
         draw();
