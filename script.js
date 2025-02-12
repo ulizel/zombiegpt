@@ -625,39 +625,119 @@ document.addEventListener("contextmenu", function (e) {
     document.getElementById("closeShopButton").addEventListener("click", closeShop);
 
     // Weapon Selection Overlay (for Test Mode)
-    const weaponOptions = document.querySelectorAll(".weaponOption");
-    weaponOptions.forEach(option => {
-        option.addEventListener("click", (e) => {
-            let selectedWeapon = e.target.getAttribute("data-weapon");
-            player.weapon = selectedWeapon;
-            if (selectedWeapon === "machineGun") {
-                player.activeGun = { type: "machineGun", ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 50 };
-            } else if (selectedWeapon === "shotgun") {
-                player.activeGun = { type: "shotgun", ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 20 };
-            } else if (selectedWeapon === "flamethrower") {
-                player.activeGun = { type: "flamethrower", fuel: 100 };
-            } else if (selectedWeapon === "laser") {
-                player.laserAmmo = 50;
-            } else if (selectedWeapon === "rocketLauncher") {
-                player.rocketAmmo = (gameMode === "test" || gameMode === "god") ? Infinity : 3;
-            } else if (selectedWeapon === "pistolDouble") {
-                player.ammo = 12;
-                player.magazine = 12;
-                player.activeGun = { type: null, ammo: 0 };
-            } else {
-                // Normal pistol or crossbow
-                player.activeGun = { type: null, ammo: 0 };
-            }
-            document.getElementById("weaponSelectionOverlay").style.display = "none";
-        });
-    });
-    document.getElementById("resetWeaponButton").addEventListener("click", () => {
-        player.weapon = "pistol";
-        player.activeGun = { type: null, ammo: 0 };
-    });
-    document.getElementById("closeWeaponSelectionButton").addEventListener("click", () => {
+const weaponOptions = document.querySelectorAll(".weaponOption");
+weaponOptions.forEach(option => {
+    option.addEventListener("click", (e) => {
+        let selectedWeapon = e.target.getAttribute("data-weapon");
+        player.weapon = selectedWeapon;
+
+        // Use an if/else chain (or switch if you prefer) to set up each weapon:
+        if (selectedWeapon === "machineGun") {
+            player.activeGun = {
+                type: "machineGun",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 50
+            };
+        } else if (selectedWeapon === "shotgun") {
+            player.activeGun = {
+                type: "shotgun",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 20
+            };
+        } else if (selectedWeapon === "flamethrower") {
+            // If flamethrower uses fuel rather than traditional ammo:
+            player.activeGun = {
+                type: "flamethrower",
+                fuel: (gameMode === "test" || gameMode === "god") ? Infinity : 100
+            };
+        } else if (selectedWeapon === "crossbow") {
+            player.activeGun = {
+                type: "crossbow",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 10
+            };
+        } else if (selectedWeapon === "laser") {
+            player.activeGun = {
+                type: "laser",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 50
+            };
+        } else if (selectedWeapon === "rocketLauncher") {
+            player.activeGun = {
+                type: "rocketLauncher",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 3
+            };
+        } else if (selectedWeapon === "miniGun") {
+            player.activeGun = {
+                type: "miniGun",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 100
+            };
+        } else if (selectedWeapon === "revolver") {
+            player.activeGun = {
+                type: "revolver",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 6
+            };
+        } else if (selectedWeapon === "plasmaRifle") {
+            player.activeGun = {
+                type: "plasmaRifle",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 30
+            };
+        } else if (selectedWeapon === "freezeCannon") {
+            player.activeGun = {
+                type: "freezeCannon",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 10
+            };
+        } else if (selectedWeapon === "lightningGun") {
+            player.activeGun = {
+                type: "lightningGun",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 10
+            };
+        } else if (selectedWeapon === "bfg9000") {
+            // If you want the BFG to have very limited ammo:
+            player.activeGun = {
+                type: "bfg9000",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 1
+            };
+        } else if (selectedWeapon === "acidGun") {
+            player.activeGun = {
+                type: "acidGun",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 30
+            };
+        } else if (selectedWeapon === "grenadeLauncher") {
+            player.activeGun = {
+                type: "grenadeLauncher",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 5
+            };
+        } else if (selectedWeapon === "dualUzis") {
+            player.activeGun = {
+                type: "dualUzis",
+                ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 60
+            };
+        } else if (selectedWeapon === "pistolDouble") {
+            // Example special handling for double pistol
+            player.ammo = 12;
+            player.magazine = 12;
+            player.activeGun = { type: null, ammo: 0 };
+        } else if (selectedWeapon === "pistol") {
+            // Standard pistol (no special type assigned)
+            player.activeGun = { type: null, ammo: 0 };
+        } else {
+            // Fallback (if a weapon doesn't match any known case)
+            player.activeGun = { type: null, ammo: 0 };
+        }
+
+        // Hide the overlay after selection
         document.getElementById("weaponSelectionOverlay").style.display = "none";
     });
+});
+
+// Reset button to revert to default pistol
+document.getElementById("resetWeaponButton").addEventListener("click", () => {
+    player.weapon = "pistol";
+    player.activeGun = { type: null, ammo: 0 };
+});
+
+// Close button to hide the overlay without changes
+document.getElementById("closeWeaponSelectionButton").addEventListener("click", () => {
+    document.getElementById("weaponSelectionOverlay").style.display = "none";
+});
+
 
     // ---------------------
     // SAVE / LOAD FUNCTIONS
