@@ -1,5 +1,5 @@
 ## Playable link
-[https://ulizel.github.io/zombiegbt/](https://ulizel.github.io/zombiegpt/)
+https://ulizel.github.io/zombiegpt/
 
 # zombiegbt
 A top down rogue zombie shooter game made using ChatGPT and HTML5.
