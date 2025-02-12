@@ -44,7 +44,7 @@ document.addEventListener("contextmenu", function (e) {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = "sawtooth";
-        oscillator.frequency.value = 200; // A lower-pitched tone for rocket launch.
+        oscillator.frequency.value = 200;
         gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
         oscillator.connect(gainNode);
@@ -132,7 +132,6 @@ document.addEventListener("contextmenu", function (e) {
         oscillator.stop(audioCtx.currentTime + 0.1);
     }
 
-    // New Laser Sound
     function playLaserSound() {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -187,6 +186,20 @@ document.addEventListener("contextmenu", function (e) {
         osc.stop(now + 0.1);
     }
 
+    // Subtle zombie kill sound
+    function playZombieKillSound() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "triangle";
+        osc.frequency.value = 100;
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+
     // ---------------------
     // GLOBAL VARIABLES & STATE
     // ---------------------
@@ -205,19 +218,19 @@ document.addEventListener("contextmenu", function (e) {
     let particles = [];
     let autoReloadScheduled = false;
     let decapitatedHeads = [];
-    let detachedLimbs = []; // NEW global array for detached zombie limbs
+    let detachedLimbs = []; // global array for detached zombie limbs
     let currencyDrops = [];
 
     // For continuous flame sound.
     let flameSoundOscillator = null;
     let flameSoundGain = null;
 
-    // --- SHOP VARIABLES ---
+    // Shop variables
     let shopThreshold = 100; // First shop opens at 100 kills.
     let shopOpen = false;
     let shopPriceMultiplier = 1.0; // Increases each shop round.
 
-    // --- Freeze Effect: When shop (or test menu) is open, game simulation freezes.
+    // Freeze effect: When shop (or test menu) is open, game simulation freezes.
     let freezeEndTime = 0;
 
     // ---------------------
@@ -254,33 +267,34 @@ document.addEventListener("contextmenu", function (e) {
         explosiveRounds: false,
         scoreMultiplier: 1,
         lastRegenTime: Date.now(),
-        // Crossbow properties:
+        // Crossbow
         crossbowAmmo: 5,
         crossbowReloading: false,
         crossbowReloadTime: 1500,
         crossbowReloadStart: 0,
-        // Laser weapon properties:
+        // Laser
         laserCooldown: 0,
-        laserAmmo: 100,
+        laserAmmo: 50,
         rocketAmmo: 5
     };
 
     // ---------------------
-    // BULLETS, ZOMBIES, POWER-UPS, LASER BEAMS
+    // BULLETS, ZOMBIES, POWER‑UPS, LASER BEAMS
     // ---------------------
     let bullets = [];
     let zombies = [];
     let powerUps = [];
     let laserBeams = [];  // Array to hold active laser beam effects.
 
-    // Include "laser" as a power‑up type.
+    // Power-up definitions
     const powerUpTypes = ["shield", "machineGun", "shotgun", "speed", "bomb", "extraAmmo", "slowMotion", "laser"];
     const powerUpColors = { shield: "blue", machineGun: "darkgray", shotgun: "saddlebrown", speed: "orange", bomb: "black", extraAmmo: "gold", slowMotion: "purple", laser: "cyan" };
     const powerUpNames = { shield: "Shield", machineGun: "Machine Gun", shotgun: "Shotgun", speed: "Speed", bomb: "Bomb", extraAmmo: "Extra Ammo", slowMotion: "Slow Motion", laser: "Laser Rifle" };
 
     // ---------------------
-    // SHOP ITEMS (and now also used for test mode)
+    // SHOP ITEMS
     // ---------------------
+    // (#5) NEW GUNS ADDED HERE AS SHOP ITEMS
     const availableShopItems = [
         { id: "extraHealth", name: "Extra Health", description: "Gain an extra life.", price: 0, effect: function () { player.lives++; } },
         { id: "moneyMagnet", name: "Money Magnet", description: "Automatically collects money within 50px.", price: 0, effect: function () { player.moneyMagnet = true; } },
@@ -292,8 +306,180 @@ document.addEventListener("contextmenu", function (e) {
         { id: "explosiveRounds", name: "Explosive Rounds", description: "Bullets cause splash damage.", price: 0, effect: function () { player.explosiveRounds = true; } },
         { id: "freezeGrenade", name: "Freeze Grenade", description: "Slow all zombies for 5 seconds.", price: 0, effect: function () { freezeEndTime = Date.now() + 5000; } },
         { id: "critChance", name: "Critical Hit Upgrade", description: "Increase chance for critical hits.", price: 0, effect: function () { player.critChance += 0.05; } },
-        // FIXED the scoreMultiplier case by assigning base:
-        { id: "scoreMultiplier", name: "Score Multiplier", description: "Double money earned for 10 seconds.", price: 0, effect: function () { player.scoreMultiplier = 2; setTimeout(() => { player.scoreMultiplier = 1; }, 10000); } }
+        { id: "scoreMultiplier", name: "Score Multiplier", description: "Double money earned for 10 seconds.", price: 0, effect: function () { player.scoreMultiplier = 2; setTimeout(() => { player.scoreMultiplier = 1; }, 10000); } },
+        {
+            id: "randomGun",
+            name: "Buy Random Gun",
+            description: "Purchase a random weapon (fixed cost).",
+            price: 0,
+            effect: function () {
+                // (#5) Updated to include more guns:
+                const gunOptions = [
+                    "pistolDouble", "machineGun", "shotgun", "flamethrower", "crossbow", "rocketLauncher", "laser",
+                    "sniperRifle", "miniGun", "revolver", "plasmaRifle", "freezeCannon", "lightningGun",
+                    "bfg9000", "acidGun", "grenadeLauncher", "dualUzis"
+                ];
+                let randomIndex = Math.floor(Math.random() * gunOptions.length);
+                let selectedGun = gunOptions[randomIndex];
+
+                // We handle each new gun similarly to existing ones
+                if (selectedGun === "pistolDouble") {
+                    player.weapon = "pistolDouble";
+                    player.ammo = 12;
+                    player.magazine = 12;
+                } else if (selectedGun === "laser") {
+                    player.weapon = "laser";
+                    player.laserAmmo = 50;
+                } else if (selectedGun === "flamethrower") {
+                    player.weapon = "flamethrower";
+                    player.activeGun = { type: "flamethrower", fuel: 100 };
+                } else if (selectedGun === "machineGun") {
+                    player.weapon = "machineGun";
+                    player.activeGun = { type: "machineGun", ammo: 50 };
+                } else if (selectedGun === "shotgun") {
+                    player.weapon = "shotgun";
+                    player.activeGun = { type: "shotgun", ammo: 20 };
+                } else if (selectedGun === "rocketLauncher") {
+                    player.weapon = "rocketLauncher";
+                    player.rocketAmmo = 3;
+                } else if (selectedGun === "crossbow") {
+                    player.weapon = "crossbow";
+                    player.crossbowAmmo = 5;
+                } else if (selectedGun === "sniperRifle") {
+                    player.weapon = "sniperRifle";
+                    player.activeGun = { type: "sniperRifle", ammo: 10 };
+                } else if (selectedGun === "miniGun") {
+                    player.weapon = "miniGun";
+                    player.activeGun = { type: "miniGun", ammo: 100 };
+                } else if (selectedGun === "revolver") {
+                    player.weapon = "revolver";
+                    player.activeGun = { type: "revolver", ammo: 6 };
+                } else if (selectedGun === "plasmaRifle") {
+                    player.weapon = "plasmaRifle";
+                    player.activeGun = { type: "plasmaRifle", ammo: 30 };
+                } else if (selectedGun === "freezeCannon") {
+                    player.weapon = "freezeCannon";
+                    player.activeGun = { type: "freezeCannon", ammo: 10 };
+                } else if (selectedGun === "lightningGun") {
+                    player.weapon = "lightningGun";
+                    player.activeGun = { type: "lightningGun", ammo: 25 };
+                } else if (selectedGun === "bfg9000") {
+                    player.weapon = "bfg9000";
+                    player.activeGun = { type: "bfg9000", ammo: 5 };
+                } else if (selectedGun === "acidGun") {
+                    player.weapon = "acidGun";
+                    player.activeGun = { type: "acidGun", ammo: 20 };
+                } else if (selectedGun === "grenadeLauncher") {
+                    player.weapon = "grenadeLauncher";
+                    player.activeGun = { type: "grenadeLauncher", ammo: 5 };
+                } else if (selectedGun === "dualUzis") {
+                    player.weapon = "dualUzis";
+                    player.activeGun = { type: "dualUzis", ammo: 50 };
+                }
+            }
+        },
+
+        // 10 new guns as direct shop items
+        {
+            id: "sniperRifle",
+            name: "Sniper Rifle",
+            description: "Long range, high damage, slow fire.",
+            price: 80,
+            effect: function () {
+                player.weapon = "sniperRifle";
+                player.activeGun = { type: "sniperRifle", ammo: 10 };
+            }
+        },
+        {
+            id: "miniGun",
+            name: "Mini-Gun",
+            description: "High fire-rate weapon with large ammo.",
+            price: 100,
+            effect: function () {
+                player.weapon = "miniGun";
+                player.activeGun = { type: "miniGun", ammo: 100 };
+            }
+        },
+        {
+            id: "revolver",
+            name: "Revolver",
+            description: "Powerful handgun with 6 shots.",
+            price: 60,
+            effect: function () {
+                player.weapon = "revolver";
+                player.activeGun = { type: "revolver", ammo: 6 };
+            }
+        },
+        {
+            id: "plasmaRifle",
+            name: "Plasma Rifle",
+            description: "Fires deadly plasma bolts.",
+            price: 90,
+            effect: function () {
+                player.weapon = "plasmaRifle";
+                player.activeGun = { type: "plasmaRifle", ammo: 30 };
+            }
+        },
+        {
+            id: "freezeCannon",
+            name: "Freeze Cannon",
+            description: "Slows enemies on hit.",
+            price: 100,
+            effect: function () {
+                player.weapon = "freezeCannon";
+                player.activeGun = { type: "freezeCannon", ammo: 10 };
+            }
+        },
+        {
+            id: "lightningGun",
+            name: "Lightning Gun",
+            description: "Arcs electricity between enemies.",
+            price: 95,
+            effect: function () {
+                player.weapon = "lightningGun";
+                player.activeGun = { type: "lightningGun", ammo: 25 };
+            }
+        },
+        {
+            id: "bfg9000",
+            name: "BFG 9000",
+            description: "Devastating area-of-effect shots.",
+            price: 150,
+            effect: function () {
+                player.weapon = "bfg9000";
+                player.activeGun = { type: "bfg9000", ammo: 5 };
+            }
+        },
+        {
+            id: "acidGun",
+            name: "Acid Gun",
+            description: "Melts enemies over time.",
+            price: 85,
+            effect: function () {
+                player.weapon = "acidGun";
+                player.activeGun = { type: "acidGun", ammo: 20 };
+            }
+        },
+        {
+            id: "grenadeLauncher",
+            name: "Grenade Launcher",
+            description: "Lobs grenades with splash damage.",
+            price: 110,
+            effect: function () {
+                player.weapon = "grenadeLauncher";
+                player.activeGun = { type: "grenadeLauncher", ammo: 5 };
+            }
+        },
+        {
+            id: "dualUzis",
+            name: "Dual Uzis",
+            description: "Two SMGs for double the fun.",
+            price: 90,
+            effect: function () {
+                player.weapon = "dualUzis";
+                player.activeGun = { type: "dualUzis", ammo: 50 };
+            }
+        }
     ];
 
     // ---------------------
@@ -308,12 +494,12 @@ document.addEventListener("contextmenu", function (e) {
         if (e.key === "Escape") {
             if (gameState === "playing") {
                 gameState = "paused";
-                pauseStartTime = Date.now();  // Record when pause starts
+                pauseStartTime = Date.now();
                 document.getElementById("pauseMenuOverlay").style.display = "flex";
                 document.getElementById("instructions").style.display = "block";
             } else if (gameState === "paused") {
                 gameState = "playing";
-                totalPausedTime += (Date.now() - pauseStartTime);  // Add the pause duration
+                totalPausedTime += (Date.now() - pauseStartTime);
                 pauseStartTime = 0;
                 document.getElementById("pauseMenuOverlay").style.display = "none";
                 document.getElementById("instructions").style.display = "none";
@@ -325,10 +511,15 @@ document.addEventListener("contextmenu", function (e) {
     canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
     canvas.addEventListener('mousedown', () => {
         mouseDown = true;
-        // If using the pistol and currently reloading, try to trigger quick reload.
-        if (player.weapon === "pistol" && player.reloading) {
+        // If using pistol / double pistol and currently reloading, try quick reload
+        if ((player.weapon === "pistol" || player.weapon === "pistolDouble") && player.reloading) {
             attemptQuickReload();
-        } else if (player.weapon !== "machineGun" && player.weapon !== "flamethrower" && player.weapon !== "laser") {
+        } else if (
+            player.weapon !== "machineGun" &&
+            player.weapon !== "flamethrower" &&
+            player.weapon !== "laser" &&
+            player.weapon !== "miniGun" // We'll let miniGun behave like machineGun, see code below
+        ) {
             shootWeapon();
         }
     });
@@ -338,10 +529,9 @@ document.addEventListener("contextmenu", function (e) {
     document.getElementById('restartButton').addEventListener('click', () => { location.reload(); });
 
     // ---------------------
-    // UI Overlay Event Listeners
+    // UI Overlays
     // ---------------------
     document.getElementById("startGameButton").addEventListener("click", () => {
-        // Set game start time when the game begins and reset paused time.
         gameStartTime = Date.now();
         totalPausedTime = 0;
 
@@ -352,7 +542,7 @@ document.addEventListener("contextmenu", function (e) {
         gameState = "playing";
         document.getElementById("mainMenuOverlay").style.display = "none";
         document.getElementById("modesMenuOverlay").style.display = "none";
-        document.getElementById("instructions").style.display = "none";  // hide controls overlay when game starts
+        document.getElementById("instructions").style.display = "none";
 
         if (gameMode === "test") {
             document.getElementById("weaponSelectionOverlay").style.display = "block";
@@ -428,10 +618,10 @@ document.addEventListener("contextmenu", function (e) {
         document.getElementById("weaponSelectionOverlay").style.display = "block";
     });
 
-    // Test Mode Menu button (only visible in test mode)
+    // Test Mode Menu button
     document.getElementById("testModeMenuButton").addEventListener("click", openTestModeMenu);
 
-    // Add event listener to close the Shop overlay when the close button is clicked.
+    // Close shop
     document.getElementById("closeShopButton").addEventListener("click", closeShop);
 
     // Weapon Selection Overlay (for Test Mode)
@@ -447,18 +637,15 @@ document.addEventListener("contextmenu", function (e) {
             } else if (selectedWeapon === "flamethrower") {
                 player.activeGun = { type: "flamethrower", fuel: 100 };
             } else if (selectedWeapon === "laser") {
-                // When selecting laser, reset its ammo capacity
-                player.weapon = "laser";
-                player.laserAmmo = 100;
-                // Continuous firing for laser is now handled in update()
-            }
-            // **** Add Rocket Launcher Option ****
-            else if (selectedWeapon === "rocketLauncher") {
-                player.weapon = "rocketLauncher";
+                player.laserAmmo = 50;
+            } else if (selectedWeapon === "rocketLauncher") {
                 player.rocketAmmo = (gameMode === "test" || gameMode === "god") ? Infinity : 3;
-            }
-            else {
-                // For pistol and crossbow, no activeGun object is used.
+            } else if (selectedWeapon === "pistolDouble") {
+                player.ammo = 12;
+                player.magazine = 12;
+                player.activeGun = { type: null, ammo: 0 };
+            } else {
+                // Normal pistol or crossbow
                 player.activeGun = { type: null, ammo: 0 };
             }
             document.getElementById("weaponSelectionOverlay").style.display = "none";
@@ -493,7 +680,10 @@ document.addEventListener("contextmenu", function (e) {
 
     function loadGame() {
         const saved = localStorage.getItem("zombieShooterSave");
-        if (!saved) { alert("No saved game found."); return; }
+        if (!saved) {
+            alert("No saved game found.");
+            return;
+        }
         const state = JSON.parse(saved);
         player = state.player;
         zombieKills = state.zombieKills;
@@ -517,8 +707,10 @@ document.addEventListener("contextmenu", function (e) {
         gameState = "shop"; // Freeze simulation while shop is open.
         let items = availableShopItems.slice();
         items.sort(() => Math.random() - 0.5);
-        // For shop, pick 3 random items.
+
+        // Pick 3 random items
         items = items.slice(0, 3);
+
         items.forEach(item => {
             let base;
             switch (item.id) {
@@ -532,11 +724,23 @@ document.addEventListener("contextmenu", function (e) {
                 case "explosiveRounds": base = 50; break;
                 case "freezeGrenade": base = 50; break;
                 case "critChance": base = 25; break;
-                case "scoreMultiplier": base = 20; break;  // FIXED assignment here.
+                case "scoreMultiplier": base = 20; break;
+                case "randomGun": base = 50; break;
+                case "sniperRifle": base = 80; break;
+                case "miniGun": base = 100; break;
+                case "revolver": base = 60; break;
+                case "plasmaRifle": base = 90; break;
+                case "freezeCannon": base = 100; break;
+                case "lightningGun": base = 95; break;
+                case "bfg9000": base = 150; break;
+                case "acidGun": base = 85; break;
+                case "grenadeLauncher": base = 110; break;
+                case "dualUzis": base = 90; break;
                 default: base = 1;
             }
             item.price = Math.floor(base * shopPriceMultiplier);
         });
+
         let shopOverlay = document.getElementById("shopOverlay");
         let container = document.getElementById("shopItemsContainer");
         container.innerHTML = "";
@@ -603,7 +807,7 @@ document.addEventListener("contextmenu", function (e) {
     });
 
     // ---------------------
-    // PARTICLE SYSTEM FUNCTIONS
+    // PARTICLE SYSTEM
     // ---------------------
     function spawnParticle(x, y, vx, vy, size, life, color) {
         if (particles.length > 500) return;
@@ -631,7 +835,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // FLAMETHROWER HELPER FUNCTIONS
+    // FLAMETHROWER HELPERS
     // ---------------------
     function spawnFlameParticles() {
         let muzzleX = player.x + Math.cos(player.angle) * 20;
@@ -690,7 +894,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // CURRENCY SYSTEM FUNCTIONS
+    // CURRENCY SYSTEM
     // ---------------------
     function maybeDropCurrency(x, y, isElite) {
         const dropChance = 0.5;
@@ -706,7 +910,10 @@ document.addEventListener("contextmenu", function (e) {
     function updateCurrencyDrops() {
         for (let i = currencyDrops.length - 1; i >= 0; i--) {
             let drop = currencyDrops[i];
-            if (Date.now() - drop.spawnTime > 6000) { currencyDrops.splice(i, 1); continue; }
+            if (Date.now() - drop.spawnTime > 6000) {
+                currencyDrops.splice(i, 1);
+                continue;
+            }
             let pickupThreshold = player.moneyMagnet ? 50 : (player.radius + drop.radius);
             if (distance(player.x, player.y, drop.x, drop.y) < pickupThreshold) {
                 player.money += drop.value;
@@ -722,7 +929,10 @@ document.addEventListener("contextmenu", function (e) {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         for (let drop of currencyDrops) {
-            if (drop.type === "dollar") { ctx.fillStyle = "green"; ctx.fillText("$", drop.x, drop.y); }
+            if (drop.type === "dollar") {
+                ctx.fillStyle = "green";
+                ctx.fillText("$", drop.x, drop.y);
+            }
             else if (drop.type === "diamond") {
                 ctx.font = "30px sans-serif";
                 let grad = ctx.createLinearGradient(drop.x, drop.y - 20, drop.x, drop.y + 20);
@@ -741,12 +951,13 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // GUN / WEAPON FUNCTIONS
+    // GUN / WEAPON LOGIC
     // ---------------------
     const baseMachineGunFireInterval = 100;
+    // (#5) Additional intervals for special guns (optional tweak)
+    const baseMiniGunFireInterval = 50;
 
     function activatePowerUp(type) {
-        // If a machine gun or shotgun power-up is picked up, switch weapon (even if currently using laser)
         if (type === "machineGun" || type === "shotgun") {
             if (type === "machineGun") {
                 player.activeGun = { type: "machineGun", ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 50 };
@@ -770,13 +981,17 @@ document.addEventListener("contextmenu", function (e) {
                 zombies.forEach(z => {
                     if (!z.dying) {
                         zombieKills++;
+                        playZombieKillSound();
                         z.dying = true;
                         z.deathTimer = 60;
                         z.initialDeathTimer = 60;
                         z.fallAngle = 0;
                         z.fallVector = { dx: 0, dy: 2 };
                         spawnBloodSplatter(z.x, z.y);
-                        if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                        if (!z.currencyDropped) {
+                            maybeDropCurrency(z.x, z.y, z.elite);
+                            z.currencyDropped = true;
+                        }
                     }
                 });
                 break;
@@ -787,32 +1002,101 @@ document.addEventListener("contextmenu", function (e) {
             case "slowMotion":
                 player.powerUps.slowMotion = Date.now() + 5000;
                 break;
-            // Laser pickup: When collected, switch the weapon to laser and refill its ammo.
             case "laser":
                 player.weapon = "laser";
-                player.laserAmmo = 100;
+                player.laserAmmo = 50;
                 break;
             default:
                 break;
         }
     }
 
+    // (#4) Helper for muzzle offset
+    function getMuzzlePosition(px, py, angle, weapon) {
+        // We can define a default offset or map different offsets if needed
+        let offsetMap = {
+            pistol: 20,
+            pistolDouble: 20,
+            machineGun: 25,
+            miniGun: 25,
+            shotgun: 30,
+            flamethrower: 20,
+            crossbow: 25,
+            rocketLauncher: 25,
+            laser: 20,
+            sniperRifle: 35,
+            revolver: 22,
+            plasmaRifle: 25,
+            freezeCannon: 25,
+            lightningGun: 25,
+            bfg9000: 30,
+            acidGun: 20,
+            grenadeLauncher: 25,
+            dualUzis: 20
+        };
+        let off = offsetMap[weapon] || 20;
+        return {
+            x: px + Math.cos(angle) * off,
+            y: py + Math.sin(angle) * off
+        };
+    }
+
     function shootWeapon() {
         if (gameOver || gameState !== "playing") return;
-        // Laser is now handled continuously in update()
-        if (player.weapon === "laser") return;
-        let bulletSpeed = 15;
+        if (player.weapon === "laser") return; // Laser handled continuously in update
+
         let angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+        // (#4) Use muzzle offset for bullet origin
+        let muzzle = getMuzzlePosition(player.x, player.y, angle, player.weapon);
+
+        let bulletSpeed = 15;
+
+        // Double Pistol
+        if (player.weapon === "pistolDouble") {
+            if (player.reloading) return;
+            if (!(gameMode === "god" || gameMode === "test") && player.ammo <= 0) {
+                reloadGun();
+                return;
+            }
+            let spreadAngle = 0.1;
+            let angleLeft = angle - spreadAngle / 2;
+            let angleRight = angle + spreadAngle / 2;
+
+            let bulletLeft = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angleLeft) * bulletSpeed,
+                dy: Math.sin(angleLeft) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "pistolDouble"
+            };
+            let bulletRight = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angleRight) * bulletSpeed,
+                dy: Math.sin(angleRight) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "pistolDouble"
+            };
+            bullets.push(bulletLeft, bulletRight);
+
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.ammo -= 1; // each shot uses 1 ammo
+            }
+            playGunshotSound();
+            player.lastShotTime = Date.now();
+            return;
+        }
+
         if (player.weapon === "pistol") {
             if (player.reloading) return;
-            // If not in god/test mode and no ammo remains, trigger a reload
             if (!(gameMode === "god" || gameMode === "test") && player.ammo <= 0) {
                 reloadGun();
                 return;
             }
             let bullet = {
-                x: player.x,
-                y: player.y,
+                x: muzzle.x,
+                y: muzzle.y,
                 dx: Math.cos(angle) * bulletSpeed,
                 dy: Math.sin(angle) * bulletSpeed,
                 spawnTime: Date.now(),
@@ -830,11 +1114,47 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "pistol";
                 return;
             }
-            let bullet = { x: player.x, y: player.y, dx: Math.cos(angle) * bulletSpeed, dy: Math.sin(angle) * bulletSpeed, spawnTime: Date.now(), source: "machineGun" };
+            let bullet = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angle) * bulletSpeed,
+                dy: Math.sin(angle) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "machineGun"
+            };
             bullets.push(bullet);
-            if (!(gameMode === "god" || gameMode === "test")) { player.activeGun.ammo--; }
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.activeGun.ammo--;
+            }
             playGunshotSound();
-            if (player.activeGun.ammo <= 0) { player.activeGun = { type: null, ammo: 0 }; player.weapon = "pistol"; }
+            if (player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+            }
+            player.lastShotTime = Date.now();
+        } else if (player.weapon === "miniGun") {
+            if (!player.activeGun || player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+                return;
+            }
+            let bullet = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angle) * bulletSpeed,
+                dy: Math.sin(angle) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "miniGun"
+            };
+            bullets.push(bullet);
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.activeGun.ammo--;
+            }
+            playGunshotSound();
+            if (player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+            }
             player.lastShotTime = Date.now();
         } else if (player.weapon === "shotgun") {
             if (!player.activeGun || player.activeGun.ammo <= 0) {
@@ -845,25 +1165,34 @@ document.addEventListener("contextmenu", function (e) {
             let offsets = [-Math.PI / 12, -Math.PI / 24, 0, Math.PI / 24, Math.PI / 12];
             for (let offset of offsets) {
                 let newAngle = angle + offset;
-                let bullet = { x: player.x, y: player.y, dx: Math.cos(newAngle) * bulletSpeed, dy: Math.sin(newAngle) * bulletSpeed, spawnTime: Date.now(), source: "shotgun" };
+                let bullet = {
+                    x: muzzle.x,
+                    y: muzzle.y,
+                    dx: Math.cos(newAngle) * bulletSpeed,
+                    dy: Math.sin(newAngle) * bulletSpeed,
+                    spawnTime: Date.now(),
+                    source: "shotgun"
+                };
                 bullets.push(bullet);
             }
-            if (!(gameMode === "god" || gameMode === "test")) { player.activeGun.ammo--; }
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.activeGun.ammo--;
+            }
             playGunshotSound();
-            if (player.activeGun.ammo <= 0) { player.activeGun = { type: null, ammo: 0 }; player.weapon = "pistol"; }
+            if (player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+            }
             player.lastShotTime = Date.now();
-        }
-        // **** Add Rocket Launcher Branch ****
-        else if (player.weapon === "rocketLauncher") {
+        } else if (player.weapon === "rocketLauncher") {
             if (player.rocketAmmo <= 0) {
-                // Switch back to pistol if out of rocket ammo
                 player.weapon = "pistol";
                 return;
             }
-            let rocketSpeed = 10; // Rockets are slower than pistol bullets.
+            let rocketSpeed = 10;
             let rocket = {
-                x: player.x,
-                y: player.y,
+                x: muzzle.x,
+                y: muzzle.y,
                 dx: Math.cos(angle) * rocketSpeed,
                 dy: Math.sin(angle) * rocketSpeed,
                 spawnTime: Date.now(),
@@ -873,8 +1202,8 @@ document.addEventListener("contextmenu", function (e) {
             player.rocketAmmo--;
             playRocketLaunchSound();
             spawnParticle(
-                player.x + Math.cos(angle) * 20,
-                player.y + Math.sin(angle) * 20,
+                muzzle.x,
+                muzzle.y,
                 (Math.random() - 0.5) * 2,
                 (Math.random() - 0.5) * 2,
                 8,
@@ -882,14 +1211,18 @@ document.addEventListener("contextmenu", function (e) {
                 "rgba(255,140,0,ALPHA)"
             );
             player.lastShotTime = Date.now();
-        }
-        // New Crossbow branch
-        else if (player.weapon === "crossbow") {
+        } else if (player.weapon === "crossbow") {
             if (player.crossbowReloading) return;
             if (player.crossbowAmmo <= 0) return;
             let bulletSpeed = 20;
-            let angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-            let bolt = { x: player.x, y: player.y, dx: Math.cos(angle) * bulletSpeed, dy: Math.sin(angle) * bulletSpeed, spawnTime: Date.now(), source: "crossbow" };
+            let bolt = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angle) * bulletSpeed,
+                dy: Math.sin(angle) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "crossbow"
+            };
             bullets.push(bolt);
             player.crossbowAmmo--;
             player.crossbowReloading = true;
@@ -898,16 +1231,43 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             player.lastShotTime = Date.now();
         }
+        // (#5) Handling newly added guns (sniperRifle, revolver, etc.) in a simple manner:
+        else if (player.weapon === "sniperRifle" || player.weapon === "revolver" || player.weapon === "plasmaRifle" ||
+                 player.weapon === "freezeCannon" || player.weapon === "lightningGun" || player.weapon === "bfg9000" ||
+                 player.weapon === "acidGun" || player.weapon === "grenadeLauncher" || player.weapon === "dualUzis") {
+            if (!player.activeGun || player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+                return;
+            }
+            // Just fire a single bullet for now, can customize further
+            let bullet = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angle) * bulletSpeed,
+                dy: Math.sin(angle) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: player.weapon
+            };
+            bullets.push(bullet);
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.activeGun.ammo--;
+            }
+            // Simple gunshot sound:
+            playGunshotSound();
+            player.lastShotTime = Date.now();
+        }
     }
 
     function reloadGun() {
         if (gameMode === "god" || gameMode === "test") return;
-        if (!player.reloading && player.weapon === "pistol" && player.ammo < player.magazine) {
+        if (!player.reloading &&
+            (player.weapon === "pistol" || player.weapon === "pistolDouble") &&
+            player.ammo < player.magazine
+        ) {
             player.reloading = true;
             player.reloadStart = Date.now();
-            // Initialize the reload duration to the base reload time.
-            player.reloadDuration = player.reloadTime;  // e.g., 2000 ms
-            // No penalty is active at the start.
+            player.reloadDuration = player.reloadTime;
             player.penaltyActive = false;
             autoReloadScheduled = false;
             playReloadStartSound();
@@ -922,24 +1282,18 @@ document.addEventListener("contextmenu", function (e) {
         const QUICK_RELOAD_ZONE_START = 0.3;
         const QUICK_RELOAD_ZONE_END = 0.4;
 
-        if (player.penaltyActive) {
-            console.log("Reload penalty active, wait for reload to complete.");
-            return;
-        }
+        if (player.penaltyActive) return;
 
         if (progress >= QUICK_RELOAD_ZONE_START && progress <= QUICK_RELOAD_ZONE_END) {
             player.ammo = player.magazine;
             player.reloading = false;
             player.penaltyActive = false;
             playReloadEndSound();
-            console.log("Quick Reload Successful!");
         } else {
             if (progress < QUICK_RELOAD_ZONE_START) {
-                console.log("Quick Reload Failed: Too early. Penalty applied.");
                 player.reloadStart = Date.now();
                 player.reloadDuration += 500;
             } else if (progress > QUICK_RELOAD_ZONE_END) {
-                console.log("Quick Reload Failed: Too late. Penalty applied.");
                 let targetElapsed = player.reloadDuration * QUICK_RELOAD_ZONE_START;
                 player.reloadStart = Date.now() - targetElapsed;
                 player.reloadDuration += 1000;
@@ -952,19 +1306,49 @@ document.addEventListener("contextmenu", function (e) {
     // ZOMBIE SPAWNING
     // ---------------------
     setInterval(spawnZombie, 1000);
+
+    // (#7) Track if boss was spawned
+    let bossSpawned = false;
+
     function spawnZombie() {
         if (gameOver || gameState !== "playing") return;
-        if (gameOver) return;
+
+        // (#7) If player has 20 kills and boss not spawned yet, spawn special boss
+        if (zombieKills >= 20 && !bossSpawned) {
+            spawnBossZombie();
+            bossSpawned = true; // ensure only one boss
+            return;
+        }
+
         let side = Math.floor(Math.random() * 4);
         let x, y;
         const offset = 30;
-        if (side === 0) { x = Math.random() * width; y = -offset; }
-        else if (side === 1) { x = width + offset; y = Math.random() * height; }
-        else if (side === 2) { x = Math.random() * width; y = height + offset; }
-        else { x = -offset; y = Math.random() * height; }
-        const zombieSpeed = 0.5 + Math.random() * 2;
+        if (side === 0) {
+            x = Math.random() * width;
+            y = -offset;
+        }
+        else if (side === 1) {
+            x = width + offset;
+            y = Math.random() * height;
+        }
+        else if (side === 2) {
+            x = Math.random() * width;
+            y = height + offset;
+        }
+        else {
+            x = -offset;
+            y = Math.random() * height;
+        }
+
+        // ENHANCEMENT: Start slower, then speed up every 20 kills, max out at original range
+        let speedFactor = 0.8 + 0.1 * Math.floor(zombieKills / 20);
+        if (speedFactor > 1) speedFactor = 1; // clamp
+        let baseSpeed = 0.5 + Math.random() * 2;
+        let zombieSpeed = baseSpeed * speedFactor;
+
         let zombie = {
-            x, y,
+            x,
+            y,
             speed: zombieSpeed,
             radius: 20,
             dying: false,
@@ -976,20 +1360,117 @@ document.addEventListener("contextmenu", function (e) {
             headDecapitated: false,
             leftArmDetached: false,
             rightArmDetached: false,
-            leftLegDetached: false,  // NEW: Track left leg
-            rightLegDetached: false, // NEW: Track right leg
+            leftLegDetached: false,
+            rightLegDetached: false,
             currencyDropped: false,
-            limbs: { // NEW: Store limb states in a nested object.
-                head: { attached: true, x: 0, y: -15, radius: 10 }, // Relative positions
-                leftArm: { attached: true, x: -15, y: 0, radius: 5 },
-                rightArm: { attached: true, x: 15, y: 0, radius: 5 },
+            limbs: {
+                head: { attached: true, x: 0, y: -15, radius: 10 },
+                leftArm: { attached: true, x: -10, y: 0, radius: 5 },
+                rightArm: { attached: true, x: 10, y: 0, radius: 5 },
                 leftLeg: { attached: true, x: -10, y: 30, radius: 5 },
                 rightLeg: { attached: true, x: 10, y: 30, radius: 5 }
-            }
+            },
+            elite: false,
+            wanderOffset: (Math.random() - 0.5) * 0.4
         };
-        if (Math.random() < 0.1) { zombie.elite = true; zombie.health = 6; }
-        else { zombie.elite = false; zombie.health = 2; }
+        if (Math.random() < 0.1) {
+            zombie.elite = true;
+            zombie.health = 6;
+        }
+        else {
+            zombie.health = 2;
+        }
+
+        // (#1) Add random phases to arms for swinging
+        zombie.armSwingAmplitude = 3 + Math.random() * 3;
+        zombie.leftArmPhase = Math.random() * Math.PI * 2;
+        zombie.rightArmPhase = Math.random() * Math.PI * 2;
+
         zombies.push(zombie);
+    }
+
+    // (#7) Boss zombie with higher health and size
+    function spawnBossZombie() {
+        let boss = {
+            x: width / 2,
+            y: -100,
+            speed: 1.2,
+            radius: 40,
+            dying: false,
+            deathTimer: 60,
+            initialDeathTimer: 60,
+            crawling: false,
+            walkCycle: 0,
+            health: 20, // significantly higher
+            headDecapitated: false,
+            currencyDropped: false,
+            limbs: {
+                head: { attached: true, x: 0, y: -30, radius: 15 },
+                leftArm: { attached: true, x: -20, y: 0, radius: 5 },
+                rightArm: { attached: true, x: 20, y: 0, radius: 5 },
+                leftLeg: { attached: true, x: -15, y: 45, radius: 5 },
+                rightLeg: { attached: true, x: 15, y: 45, radius: 5 }
+            },
+            elite: true,  // boss is an elite type
+            wanderOffset: 0,
+            // arms swinging
+            armSwingAmplitude: 4,
+            leftArmPhase: Math.random() * Math.PI * 2,
+            rightArmPhase: Math.random() * Math.PI * 2
+        };
+        zombies.push(boss);
+    }
+
+    // New crawler type: slow, 1hp, no legs
+    function spawnCrawlerZombie() {
+        let side = Math.floor(Math.random() * 4);
+        let x, y;
+        const offset = 30;
+        if (side === 0) {
+            x = Math.random() * width;
+            y = -offset;
+        }
+        else if (side === 1) {
+            x = width + offset;
+            y = Math.random() * height;
+        }
+        else if (side === 2) {
+            x = Math.random() * width;
+            y = height + offset;
+        }
+        else {
+            x = -offset;
+            y = Math.random() * height;
+        }
+
+        let crawler = {
+            x,
+            y,
+            speed: 0.3, // slow
+            radius: 15,
+            dying: false,
+            deathTimer: 30,
+            initialDeathTimer: 30,
+            crawling: true, // permanently crawling
+            walkCycle: Math.random() * Math.PI * 2,
+            health: 1,
+            headDecapitated: false,
+            currencyDropped: false,
+            limbs: {
+                head: { attached: true, x: 0,  y: -10, radius: 8 },
+                leftArm: { attached: true, x: -8,  y: 0, radius: 4 },
+                rightArm: { attached: true, x: 8,   y: 0, radius: 4 },
+                leftLeg: { attached: false },
+                rightLeg: { attached: false }
+            },
+            elite: false,
+            wanderOffset: (Math.random() - 0.5) * 0.4,
+            armSwingAmplitude: 1.5, // mild
+            leftArmPhase: Math.random() * Math.PI * 2,
+            rightArmPhase: Math.random() * Math.PI * 2,
+            isCrawler: true // marker for special draw logic if needed
+        };
+        zombies.push(crawler);
     }
 
     // ---------------------
@@ -998,8 +1479,13 @@ document.addEventListener("contextmenu", function (e) {
     setInterval(spawnPowerUp, 10000);
     function spawnPowerUp() {
         if (gameOver || gameState !== "playing") return;
-        if (gameOver) return;
         const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+
+        // Avoid duplicates of the same type
+        if (powerUps.some(p => p.type === type)) {
+            return; // skip if same type is already on the field
+        }
+
         const margin = 50;
         const x = margin + Math.random() * (width - 2 * margin);
         const y = margin + Math.random() * (height - 2 * margin);
@@ -1007,14 +1493,14 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // UTILITY FUNCTION
+    // UTILITY
     // ---------------------
     function distance(x1, y1, x2, y2) {
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     }
 
     // ---------------------
-    // BLOOD SPLATTER EFFECT
+    // BLOOD SPLATTER
     // ---------------------
     function spawnBloodSplatter(x, y) {
         const count = 10;
@@ -1026,7 +1512,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // ROCKET EXPLOSION LOGIC
+    // ROCKET EXPLOSION
     // ---------------------
     function explodeRocket(rocket) {
         let dx = mouse.x - rocket.x;
@@ -1036,6 +1522,7 @@ document.addEventListener("contextmenu", function (e) {
         zombies.forEach((z) => {
             if (!z.dying && distance(rocket.x, rocket.y, z.x, z.y) <= explosionRadius + z.radius) {
                 zombieKills++;
+                playZombieKillSound();
                 z.dying = true;
                 z.deathTimer = 60;
                 z.initialDeathTimer = 60;
@@ -1048,7 +1535,10 @@ document.addEventListener("contextmenu", function (e) {
                 z.fallVector = { dx: impactDx * 5, dy: impactDy * 5 };
                 z.fallAngle = Math.atan2(impactDy, impactDx);
                 spawnBloodSplatter(z.x, z.y);
-                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                if (!z.currencyDropped) {
+                    maybeDropCurrency(z.x, z.y, z.elite);
+                    z.currencyDropped = true;
+                }
             }
         });
 
@@ -1068,7 +1558,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // HUD DRAWING FUNCTION
+    // HUD
     // ---------------------
     function drawHUD() {
         const hudMarginLeft = 20;
@@ -1077,20 +1567,28 @@ document.addEventListener("contextmenu", function (e) {
         let lines = [];
         lines.push("Money: $" + player.money);
         lines.push("Lives: " + player.lives);
+
         if (player.activeGun && player.activeGun.type) {
-            if (player.activeGun.type === "flamethrower")
+            if (player.activeGun.type === "flamethrower") {
                 lines.push("Fuel (" + player.activeGun.type + "): " + Math.floor(player.activeGun.fuel));
-            else
-                lines.push("Ammo (" + player.activeGun.type + "): " + (player.activeGun.ammo === Infinity ? "∞" : player.activeGun.ammo));
-        } else if (player.weapon === "pistol")
+            } else {
+                lines.push("Ammo (" + player.activeGun.type + "): " +
+                    (player.activeGun.ammo === Infinity ? "∞" : player.activeGun.ammo));
+            }
+        } else if (player.weapon === "pistol") {
             lines.push("Ammo: " + player.ammo + " / " + player.magazine);
-        else if (player.weapon === "crossbow")
+        } else if (player.weapon === "pistolDouble") {
+            lines.push("Ammo (Double Pistol): " + player.ammo + " / " + player.magazine);
+        } else if (player.weapon === "crossbow") {
             lines.push("Ammo (Crossbow): " + player.crossbowAmmo + " bolts");
-        else if (player.weapon === "laser")
+        } else if (player.weapon === "laser") {
             lines.push("Laser Ammo: " + player.laserAmmo);
-        else if (player.weapon === "rocketLauncher")
+        } else if (player.weapon === "rocketLauncher") {
             lines.push("Rocket Ammo: " + player.rocketAmmo);
+        }
+
         lines.push("Weapon: " + player.weapon.charAt(0).toUpperCase() + player.weapon.slice(1));
+
         if (player.rapidFireLevel > 0) lines.push("Rapid Fire Level: " + player.rapidFireLevel);
         if (player.damageMultiplier > 1) lines.push("Damage Boost: x" + player.damageMultiplier.toFixed(2));
         if (player.extraArmor > 0) lines.push("Armor: " + player.extraArmor);
@@ -1098,10 +1596,12 @@ document.addEventListener("contextmenu", function (e) {
         if (player.critChance > 0) lines.push("Crit Chance: " + (player.critChance * 100).toFixed(0) + "%");
         if (player.explosiveRounds) lines.push("Explosive Rounds: On");
         if (player.scoreMultiplier > 1) lines.push("Score Multiplier: x" + player.scoreMultiplier);
+
         let currentTime = (gameState === "paused" && pauseStartTime) ? pauseStartTime : Date.now();
         let elapsedTime = Math.floor((currentTime - gameStartTime - totalPausedTime) / 1000);
         lines.push("Kills: " + zombieKills);
         lines.push("Time: " + elapsedTime + "s");
+
         ctx.save();
         ctx.font = "20px sans-serif";
         ctx.fillStyle = "black";
@@ -1114,7 +1614,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // GAME UPDATE FUNCTION
+    // GAME UPDATE
     // ---------------------
     function update() {
         if (gameState !== "playing") return;
@@ -1126,14 +1626,19 @@ document.addEventListener("contextmenu", function (e) {
 
         if (gameMode === "god" || gameMode === "test") {
             player.ammo = player.magazine;
-            if (player.activeGun && player.activeGun.type && player.weapon !== "pistol")
+            if (player.activeGun && player.activeGun.type && player.weapon !== "pistol") {
                 player.activeGun.ammo = Infinity;
+            }
         }
 
-        if (gameMode === "god") player.speed = player.baseSpeed * 2;
-        else player.speed = player.baseSpeed * (player.powerUps.speed ? 1.5 : 1);
+        if (gameMode === "god") {
+            player.speed = player.baseSpeed * 2;
+        } else {
+            player.speed = player.baseSpeed * (player.powerUps.speed ? 1.5 : 1);
+        }
 
-        if (player.weapon === "machineGun" || player.weapon === "shotgun" || player.weapon === "flamethrower") {
+        // If using a temporary weapon
+        if (player.weapon === "machineGun" || player.weapon === "shotgun" || player.weapon === "flamethrower" || player.weapon === "miniGun") {
             if (player.activeGun && player.activeGun.type) {
                 player.weapon = player.activeGun.type;
             } else {
@@ -1149,7 +1654,8 @@ document.addEventListener("contextmenu", function (e) {
         player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         if (moving) player.walkCycle += 0.15; else player.walkCycle = 0;
         if (player.recoil > 0) player.recoil = Math.max(player.recoil - 1, 0);
-        if (player.reloading && player.weapon === "pistol") {
+
+        if (player.reloading && (player.weapon === "pistol" || player.weapon === "pistolDouble")) {
             let reloadElapsed = Date.now() - player.reloadStart;
             if (reloadElapsed >= player.reloadDuration) {
                 player.ammo = player.magazine;
@@ -1160,23 +1666,37 @@ document.addEventListener("contextmenu", function (e) {
         }
 
         for (let key in player.powerUps) {
-            if (gameMode !== "god" && Date.now() > player.powerUps[key]) delete player.powerUps[key];
+            if (gameMode !== "god" && Date.now() > player.powerUps[key]) {
+                delete player.powerUps[key];
+            }
         }
         for (let i = powerUps.length - 1; i >= 0; i--) {
             const pwr = powerUps[i];
-            if (Date.now() - pwr.spawnTime > 20000) { powerUps.splice(i, 1); continue; }
+            if (Date.now() - pwr.spawnTime > 20000) {
+                powerUps.splice(i, 1);
+                continue;
+            }
             if (distance(player.x, player.y, pwr.x, pwr.y) < player.radius + pwr.radius) {
                 activatePowerUp(pwr.type);
                 powerUps.splice(i, 1);
             }
         }
 
-        // Machine gun rapid fire.
+        // Machine gun continuous fire
         if (player.weapon === "machineGun" && mouseDown) {
             let fireInterval = baseMachineGunFireInterval / (1 + player.rapidFireLevel * 0.2);
-            if (Date.now() - player.lastShotTime >= fireInterval) shootWeapon();
+            if (Date.now() - player.lastShotTime >= fireInterval) {
+                shootWeapon();
+            }
         }
-        // Flamethrower.
+        // Mini-Gun continuous fire
+        if (player.weapon === "miniGun" && mouseDown) {
+            let fireInterval = baseMiniGunFireInterval / (1 + player.rapidFireLevel * 0.2);
+            if (Date.now() - player.lastShotTime >= fireInterval) {
+                shootWeapon();
+            }
+        }
+        // Flamethrower
         if (player.weapon === "flamethrower" && mouseDown) {
             if (player.activeGun && player.activeGun.fuel > 0) {
                 player.activeGun.fuel -= 0.5;
@@ -1190,19 +1710,30 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "pistol";
                 stopFlameSound();
             }
-        } else { if (player.weapon !== "flamethrower" || !mouseDown) stopFlameSound(); }
-
-        // Laser continuous fire.
+        } else {
+            if (player.weapon !== "flamethrower" || !mouseDown) {
+                stopFlameSound();
+            }
+        }
+        // Laser
         if (player.weapon === "laser" && mouseDown) {
-            let laserFireInterval = 100; // fire every 100ms
+            let laserFireInterval = 100;
             if (Date.now() - player.lastShotTime >= laserFireInterval) {
                 if (player.laserAmmo > 0) {
                     player.laserAmmo--;
                     playLaserSound();
                     player.lastShotTime = Date.now();
-                    laserBeams.push({ x: player.x, y: player.y, angle: player.angle, spawnTime: Date.now(), duration: 100 });
+                    laserBeams.push({
+                        x: player.x,
+                        y: player.y,
+                        angle: player.angle,
+                        spawnTime: Date.now(),
+                        duration: 100
+                    });
                     let beamWidth = 10;
                     let beamLength = Math.sqrt(width * width + height * height);
+                    let laserDamage = 0.5 * player.damageMultiplier; // half damage
+
                     for (let i = zombies.length - 1; i >= 0; i--) {
                         let z = zombies[i];
                         if (z.dying) continue;
@@ -1212,14 +1743,26 @@ document.addEventListener("contextmenu", function (e) {
                         if (proj < 0 || proj > beamLength) continue;
                         let perpDist = Math.abs(-Math.sin(player.angle) * dx + Math.cos(player.angle) * dy);
                         if (perpDist < beamWidth + z.radius) {
-                            zombieKills++;
-                            z.dying = true;
-                            z.deathTimer = 60;
-                            z.initialDeathTimer = 60;
-                            z.fallAngle = player.angle;
-                            z.fallVector = { dx: Math.cos(player.angle) * 5, dy: Math.sin(player.angle) * 5 };
+                            // Apply partial damage
+                            z.health -= laserDamage;
                             spawnBloodSplatter(z.x, z.y);
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+
+                            if (z.health <= 0 && !z.dying) {
+                                zombieKills++;
+                                playZombieKillSound();
+                                z.dying = true;
+                                z.deathTimer = 60;
+                                z.initialDeathTimer = 60;
+                                z.fallAngle = player.angle;
+                                z.fallVector = {
+                                    dx: Math.cos(player.angle) * 5,
+                                    dy: Math.sin(player.angle) * 5
+                                };
+                                if (!z.currencyDropped) {
+                                    maybeDropCurrency(z.x, z.y, z.elite);
+                                    z.currencyDropped = true;
+                                }
+                            }
                         }
                     }
                 } else {
@@ -1228,9 +1771,9 @@ document.addEventListener("contextmenu", function (e) {
             }
         }
 
+        // Update bullets
         for (let i = bullets.length - 1; i >= 0; i--) {
             let b = bullets[i];
-
             if (b.source === "rocket") {
                 let rocketAngle = Math.atan2(b.dy, b.dx);
                 let tailOffset = 16;
@@ -1267,15 +1810,43 @@ document.addEventListener("contextmenu", function (e) {
                 }
                 continue;
             }
-
             b.x += b.dx;
             b.y += b.dy;
-            if (b.source !== "flamethrower")
-                spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, "rgba(0,0,0,ALPHA)");
-            if (b.source === "flamethrower" && distance(b.startX, b.startY, b.x, b.y) > 100) { bullets.splice(i, 1); continue; }
-            if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) { bullets.splice(i, 1); }
+
+            // (#6) Colorful or extra particle effect for bullets
+            let colorMap = {
+                pistol: "rgba(60,60,60,ALPHA)",
+                pistolDouble: "rgba(60,60,150,ALPHA)",
+                machineGun: "rgba(50,50,50,ALPHA)",
+                miniGun: "rgba(80,80,80,ALPHA)",
+                shotgun: "rgba(139,69,19,ALPHA)",
+                crossbow: "rgba(160,82,45,ALPHA)",
+                sniperRifle: "rgba(255,0,0,ALPHA)",
+                revolver: "rgba(128,0,0,ALPHA)",
+                plasmaRifle: "rgba(0,255,255,ALPHA)",
+                freezeCannon: "rgba(0,255,255,ALPHA)",
+                lightningGun: "rgba(255,255,0,ALPHA)",
+                bfg9000: "rgba(0,255,0,ALPHA)",
+                acidGun: "rgba(0,128,0,ALPHA)",
+                grenadeLauncher: "rgba(90,90,90,ALPHA)",
+                dualUzis: "rgba(100,100,100,ALPHA)",
+                flamethrower: "rgba(255,165,0,ALPHA)",
+                rocket: "rgba(255,140,0,ALPHA)"
+            };
+            let bulletColor = colorMap[b.source] || "rgba(0,0,0,ALPHA)";
+
+            spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, bulletColor);
+
+            if (b.source === "flamethrower" && distance(b.startX, b.startY, b.x, b.y) > 100) {
+                bullets.splice(i, 1);
+                continue;
+            }
+            if (b.x < 0 || b.x > width || b.y < 0 || b.y > height) {
+                bullets.splice(i, 1);
+            }
         }
 
+        // Update zombies
         for (let i = zombies.length - 1; i >= 0; i--) {
             let z = zombies[i];
             if (!z.dying) {
@@ -1283,173 +1854,185 @@ document.addEventListener("contextmenu", function (e) {
                 if (player.powerUps.slowMotion) effectiveSpeed *= 0.5;
                 if (freezeEndTime && Date.now() < freezeEndTime) effectiveSpeed *= 0.5;
                 if (z.crawling) effectiveSpeed *= 0.3;
-                const angle = Math.atan2(player.y - z.y, player.x - z.x);
+
+                const baseAngle = Math.atan2(player.y - z.y, player.x - z.x);
+                z.wanderOffset += (Math.random() - 0.5) * 0.01;
+                let angle = baseAngle + z.wanderOffset;
+
+                z.walkCycle += effectiveSpeed * 0.03;
+
                 z.x += Math.cos(angle) * effectiveSpeed;
                 z.y += Math.sin(angle) * effectiveSpeed;
+
+                // Player collision
                 if (distance(z.x, z.y, player.x, player.y) < z.radius + player.radius) {
-                    if (Date.now() < (player.invulnerableUntil || 0)) { }
-                    else if (gameMode === "god" || player.powerUps.shield) {
+                    if (Date.now() < (player.invulnerableUntil || 0)) {
+                        // no effect
+                    } else if (gameMode === "god" || player.powerUps.shield) {
                         if (!z.dying) {
                             zombieKills++;
+                            playZombieKillSound();
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
                             z.fallAngle = 0;
                             z.fallVector = { dx: 0, dy: 2 };
                             spawnBloodSplatter(z.x, z.y);
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
                         }
                     } else if (player.extraArmor > 0) {
                         player.extraArmor--;
                         if (!z.dying) {
                             zombieKills++;
+                            playZombieKillSound();
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
                             z.fallAngle = 0;
                             z.fallVector = { dx: 0, dy: 2 };
                             spawnBloodSplatter(z.x, z.y);
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
                         }
                     } else if (player.lives > 1) {
                         player.lives--;
                         player.invulnerableUntil = Date.now() + 2000;
                         if (!z.dying) {
                             zombieKills++;
+                            playZombieKillSound();
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
                             z.fallAngle = 0;
                             z.fallVector = { dx: 0, dy: 2 };
                             spawnBloodSplatter(z.x, z.y);
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
                         }
-                    } else { gameOver = true; showGameOverOverlay(); }
+                    } else {
+                        // player dies
+                        gameOver = true;
+                        showGameOverOverlay();
+                    }
                 }
             } else {
+                // Dying
                 z.x += z.fallVector.dx;
                 z.y += z.fallVector.dy;
                 z.fallVector.dx *= 0.95;
                 z.fallVector.dy *= 0.95;
                 z.deathTimer--;
                 if (z.deathTimer <= 0) {
-                    if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                    if (!z.currencyDropped) {
+                        maybeDropCurrency(z.x, z.y, z.elite);
+                        z.currencyDropped = true;
+                    }
                     zombies.splice(i, 1);
                 }
             }
         }
 
+        // Collision with bullets
         for (let i = zombies.length - 1; i >= 0; i--) {
             let z = zombies[i];
             if (!z.dying) {
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     let b = bullets[j];
                     let collisionTolerance = (b.source === "flamethrower") ? 10 : 3;
-                    // Calculate bullet's position relative to the zombie.
                     let relativeBulletX = b.x - z.x;
                     let relativeBulletY = b.y - z.y;
 
-                    // Check each limb for collision.
+                    // Check limbs
                     for (let limbName in z.limbs) {
-                        if (!z.limbs.hasOwnProperty(limbName)) continue; // Skip prototype properties
-
+                        if (!z.limbs.hasOwnProperty(limbName)) continue;
                         let limb = z.limbs[limbName];
-                        if (!limb.attached) continue; // Skip detached limbs.
+                        if (!limb.attached) continue;
 
                         let limbDistance = distance(relativeBulletX, relativeBulletY, limb.x, limb.y);
                         if (limbDistance < limb.radius + collisionTolerance) {
-                            // Limb hit!
-
-                            // Detach the limb.
+                            // Limb hit
                             limb.attached = false;
                             if (limbName === "head") z.headDecapitated = true;
-                            else if (limbName === "leftArm") z.leftArmDetached = true;
-                            else if (limbName === "rightArm") z.rightArmDetached = true;
-                            else if (limbName === "leftLeg") z.leftLegDetached = true;
-                            else if (limbName === "rightLeg") z.rightLegDetached = true;
-
-
-                            // Create detached limb object.
                             detachedLimbs.push({
                                 type: limbName,
-                                x: z.x + limb.x, // Absolute position
+                                x: z.x + limb.x,
                                 y: z.y + limb.y,
                                 vx: b.dx * 0.8 + (Math.random() - 0.5) * 2,
                                 vy: b.dy * 0.8 + (Math.random() - 0.5) * 2,
-                                rotation: Math.random() * Math.PI * 2, // Random initial rotation
+                                rotation: Math.random() * Math.PI * 2,
                                 angularVelocity: (Math.random() - 0.5) * 0.2,
                                 life: 120,
                                 maxLife: 120
                             });
-
-                            // Blood splatter at the limb's position.
                             spawnBloodSplatter(z.x + limb.x, z.y + limb.y);
 
-
-                            // --- DAMAGE AND DEATH LOGIC ---
-                            let baseDamage = 0;
-                            if (limbName === "head") {
-                                baseDamage = 2;  // Headshot damage
-                                playZombieHeadshotSound();
-                            } else {
-                                baseDamage = 0.5; // Limb damage - less than a body hit
-                                playZombieHitSound();
-                            }
+                            let baseDamage = (limbName === "head") ? 2 : 0.5;
+                            if (limbName === "head") playZombieHeadshotSound();
+                            else playZombieHitSound();
 
                             let damage = baseDamage * player.damageMultiplier;
                             if (Math.random() < player.critChance) damage *= 2;
                             z.health -= damage;
 
-
                             if (z.health <= 0 && !z.dying) {
                                 zombieKills++;
-                                spawnBloodSplatter(z.x, z.y); // More blood for death
+                                playZombieKillSound();
+                                spawnBloodSplatter(z.x, z.y);
                                 z.dying = true;
                                 z.deathTimer = 60;
                                 z.initialDeathTimer = 60;
                                 let fallImpactFactor = (b.source === "pistol") ? 0.2 : 0.5;
                                 z.fallAngle = Math.atan2(b.dy, b.dx);
                                 z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
-                                if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                                if (!z.currencyDropped) {
+                                    maybeDropCurrency(z.x, z.y, z.elite);
+                                    z.currencyDropped = true;
+                                }
                             }
-
-                            // Check for crawling.  This is now more accurate.
-                            if (z.limbs.leftLeg.attached === false && z.limbs.rightLeg.attached === false) {
+                            if (!z.limbs.leftLeg.attached && !z.limbs.rightLeg.attached) {
                                 z.crawling = true;
                             }
-
-                            bullets.splice(j, 1); // Remove the bullet.
-                            break; // Exit the limb check loop after a hit.
+                            bullets.splice(j, 1);
+                            break;
                         }
-                    } // End of limb collision check loop.
-
-                    // --- ADD THIS BLOCK FOR GENERAL BODY HITS ---
+                    }
+                    // Body hit
                     if (distance(z.x, z.y, b.x, b.y) < z.radius + collisionTolerance) {
-                        //If we reached here, no limb was hit, but the bullet is still within the zombies radius
                         playZombieHitSound();
-                        let baseDamage = 1; // Body hit damage
+                        let baseDamage = 1;
                         let damage = baseDamage * player.damageMultiplier;
                         if (Math.random() < player.critChance) damage *= 2;
                         z.health -= damage;
 
                         if (z.health <= 0 && !z.dying) {
                             zombieKills++;
-                            spawnBloodSplatter(z.x, z.y); // More blood for death
+                            playZombieKillSound();
+                            spawnBloodSplatter(z.x, z.y);
                             z.dying = true;
                             z.deathTimer = 60;
                             z.initialDeathTimer = 60;
                             let fallImpactFactor = (b.source === "pistol") ? 0.2 : 0.5;
                             z.fallAngle = Math.atan2(b.dy, b.dx);
                             z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
-                            if (!z.currencyDropped) { maybeDropCurrency(z.x, z.y, z.elite); z.currencyDropped = true; }
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
                         }
-                        bullets.splice(j, 1); //remove bullet
+                        bullets.splice(j, 1);
                     }
-                    // --- END OF ADDED BLOCK ---
                 }
             }
         }
 
+        // Decap heads
         for (let i = decapitatedHeads.length - 1; i >= 0; i--) {
             let head = decapitatedHeads[i];
             head.x += head.vx;
@@ -1461,7 +2044,7 @@ document.addEventListener("contextmenu", function (e) {
             if (head.life <= 0) decapitatedHeads.splice(i, 1);
         }
 
-        // NEW: Update detached limbs.
+        // Detached limbs
         for (let i = detachedLimbs.length - 1; i >= 0; i--) {
             let limb = detachedLimbs[i];
             limb.x += limb.vx;
@@ -1476,7 +2059,6 @@ document.addEventListener("contextmenu", function (e) {
         updateCurrencyDrops();
         updateParticles();
 
-        // Update laser beams.
         for (let i = laserBeams.length - 1; i >= 0; i--) {
             if (Date.now() - laserBeams[i].spawnTime > laserBeams[i].duration) {
                 laserBeams.splice(i, 1);
@@ -1489,11 +2071,13 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     // ---------------------
-    // DRAW FUNCTIONS
+    // DRAW
     // ---------------------
     function draw() {
         ctx.clearRect(0, 0, width, height);
+
         drawPowerUps();
+
         if (gameMode === "god") {
             ctx.save();
             ctx.shadowBlur = 20;
@@ -1504,7 +2088,9 @@ document.addEventListener("contextmenu", function (e) {
             ctx.fill();
             ctx.restore();
         }
+
         drawPlayer();
+
         for (let b of bullets) {
             if (b.source === "flamethrower") continue;
             if (b.source === "rocket") {
@@ -1539,8 +2125,14 @@ document.addEventListener("contextmenu", function (e) {
                 ctx.restore();
             }
         }
-        for (let z of zombies) { drawZombie(z); }
+
+        for (let z of zombies) {
+            drawZombie(z);
+        }
+
         drawParticles();
+
+        // Decapitated heads
         for (let head of decapitatedHeads) {
             ctx.save();
             ctx.translate(head.x, head.y);
@@ -1553,14 +2145,14 @@ document.addEventListener("contextmenu", function (e) {
             ctx.stroke();
             ctx.restore();
         }
-        // NEW: Draw detached limbs.
-        // Draw detached limbs.
+
+        // Detached limbs
         for (let limb of detachedLimbs) {
             ctx.save();
             ctx.translate(limb.x, limb.y);
             ctx.rotate(limb.rotation);
-            ctx.fillStyle = "red"; // Use fillStyle for filled shapes.
-            ctx.strokeStyle = "darkred"; // Darker outline.
+            ctx.fillStyle = "red";
+            ctx.strokeStyle = "darkred";
             ctx.lineWidth = 2;
 
             if (limb.type === "head") {
@@ -1568,18 +2160,18 @@ document.addEventListener("contextmenu", function (e) {
                 ctx.arc(0, 0, 10, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-            } else if (limb.type.includes("Arm")) { // Handles both leftArm and rightArm
+            } else if (limb.type.includes("Arm")) {
                 ctx.beginPath();
-                ctx.moveTo(0, -3); // Small rectangle for arm.
+                ctx.moveTo(0, -3);
                 ctx.lineTo(10, -3);
                 ctx.lineTo(10, 3);
                 ctx.lineTo(0, 3);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-            } else if (limb.type.includes("Leg")) { // Handles both leftLeg and rightLeg
+            } else if (limb.type.includes("Leg")) {
                 ctx.beginPath();
-                ctx.moveTo(0, -3);  // Small rectangle for leg.
+                ctx.moveTo(0, -3);
                 ctx.lineTo(12, -3);
                 ctx.lineTo(12, 3);
                 ctx.lineTo(0, 3);
@@ -1589,9 +2181,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             ctx.restore();
         }
+
         drawCurrencyDrops();
 
-        // Draw active laser beams.
+        // Active laser beams
         for (let beam of laserBeams) {
             let beamLength = Math.sqrt(width * width + height * height);
             let endX = beam.x + Math.cos(beam.angle) * beamLength;
@@ -1609,6 +2202,8 @@ document.addEventListener("contextmenu", function (e) {
         }
 
         drawHUD();
+
+        // Custom mouse cursor
         ctx.save();
         ctx.beginPath();
         ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
@@ -1620,6 +2215,7 @@ document.addEventListener("contextmenu", function (e) {
         ctx.restore();
     }
 
+    // (#2) Reworked the player’s left arm design:
     function drawPlayer() {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 2;
@@ -1630,38 +2226,57 @@ document.addEventListener("contextmenu", function (e) {
             ctx.stroke();
             ctx.strokeStyle = "black";
         }
+        // Player "head"
         ctx.beginPath();
         ctx.arc(player.x, player.y - 15, 10, 0, Math.PI * 2);
         ctx.stroke();
+
+        // Body
         ctx.beginPath();
         ctx.moveTo(player.x, player.y - 5);
         ctx.lineTo(player.x, player.y + 15);
         ctx.stroke();
-        let leftArmSwing = Math.sin(player.walkCycle) * 3;
+
+        // (#2) Left arm mostly downward with slight sway
+        let leftArmX = player.x - 5;
+        let leftArmY = player.y + 10 + Math.sin(player.walkCycle) * 2;
         ctx.beginPath();
         ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x - 15 + leftArmSwing, player.y);
+        ctx.lineTo(leftArmX, leftArmY);
         ctx.stroke();
+
+        // Right arm (holding gun)
         const armLength = 15;
         ctx.beginPath();
         ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x + Math.cos(player.angle) * armLength, player.y + Math.sin(player.angle) * armLength);
+        ctx.lineTo(
+            player.x + Math.cos(player.angle) * armLength,
+            player.y + Math.sin(player.angle) * armLength
+        );
         ctx.stroke();
+
+        // Legs
         let leftLegOffset = Math.sin(player.walkCycle) * 5;
         let rightLegOffset = Math.sin(player.walkCycle + Math.PI) * 5;
+
         ctx.beginPath();
         ctx.moveTo(player.x, player.y + 15);
         ctx.lineTo(player.x - 10 + leftLegOffset, player.y + 30);
         ctx.stroke();
+
         ctx.beginPath();
         ctx.moveTo(player.x, player.y + 15);
         ctx.lineTo(player.x + 10 + rightLegOffset, player.y + 30);
         ctx.stroke();
+
+        // Gun drawing
         const gunStartX = player.x + Math.cos(player.angle) * (armLength - player.recoil);
         const gunStartY = player.y + Math.sin(player.angle) * (armLength - player.recoil);
         ctx.save();
         ctx.translate(gunStartX, gunStartY);
         ctx.rotate(player.angle);
+
+        // (#3) Expanded / custom designs for each gun:
         if (player.weapon === "shotgun") {
             const gunLength = 30;
             const gunThickness = 8;
@@ -1681,8 +2296,11 @@ document.addEventListener("contextmenu", function (e) {
             const gunThickness = 8;
             ctx.fillStyle = "peru";
             ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
-            ctx.strokeStyle = "black";
-            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // A small bow curve at the front
+            ctx.beginPath();
+            ctx.moveTo(gunLength, -gunThickness);
+            ctx.lineTo(gunLength, gunThickness);
+            ctx.stroke();
         } else if (player.weapon === "laser") {
             const gunLength = 30;
             const gunThickness = 6;
@@ -1690,7 +2308,116 @@ document.addEventListener("contextmenu", function (e) {
             ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
             ctx.strokeStyle = "black";
             ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "pistolDouble") {
+            const gunLength = 20;
+            const gunThickness = 8;
+            ctx.fillStyle = "darkblue";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "machineGun") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "darkgray";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // Some muzzle detail
+            ctx.fillStyle = "black";
+            ctx.fillRect(gunLength, -gunThickness / 4, 5, gunThickness / 2);
+        } else if (player.weapon === "miniGun") {
+            const gunLength = 30;
+            const gunThickness = 10;
+            ctx.fillStyle = "gray";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // Barrel cluster
+            ctx.beginPath();
+            ctx.arc(gunLength + 3, 0, gunThickness / 2, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (player.weapon === "sniperRifle") {
+            const gunLength = 40;
+            const gunThickness = 4;
+            ctx.fillStyle = "maroon";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // A small scope
+            ctx.beginPath();
+            ctx.arc(10, -6, 3, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (player.weapon === "revolver") {
+            const gunLength = 20;
+            const gunThickness = 6;
+            ctx.fillStyle = "silver";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // Cylinder detail
+            ctx.beginPath();
+            ctx.arc(6, 0, gunThickness / 2, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (player.weapon === "plasmaRifle") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "cyan";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // front coil
+            ctx.beginPath();
+            ctx.arc(gunLength + 2, 0, 4, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (player.weapon === "freezeCannon") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "lightblue";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "lightningGun") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "bfg9000") {
+            const gunLength = 35;
+            const gunThickness = 12;
+            ctx.fillStyle = "green";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "acidGun") {
+            const gunLength = 20;
+            const gunThickness = 7;
+            ctx.fillStyle = "limegreen";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+        } else if (player.weapon === "grenadeLauncher") {
+            const gunLength = 25;
+            const gunThickness = 8;
+            ctx.fillStyle = "darkgrey";
+            ctx.fillRect(0, -gunThickness / 2, gunLength, gunThickness);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
+            // round muzzle
+            ctx.beginPath();
+            ctx.arc(gunLength, 0, gunThickness / 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (player.weapon === "dualUzis") {
+            const gunLength = 20;
+            const gunThickness = 6;
+            ctx.fillStyle = "grey";
+            // Just draw one visually here, but it's "dual"
+            ctx.fillRect(0, -gunThickness, gunLength, gunThickness);
+            ctx.strokeRect(0, -gunThickness, gunLength, gunThickness);
+            ctx.fillRect(0, 0, gunLength, gunThickness);
+            ctx.strokeRect(0, 0, gunLength, gunThickness);
         } else {
+            // Default pistol
             const gunLength = 20;
             const gunThickness = 6;
             ctx.fillStyle = "darkgray";
@@ -1699,7 +2426,12 @@ document.addEventListener("contextmenu", function (e) {
             ctx.strokeRect(0, -gunThickness / 2, gunLength, gunThickness);
         }
         ctx.restore();
-        if (player.reloading) {
+
+        // Reload bar
+        if (
+            player.reloading &&
+            (player.weapon === "pistol" || player.weapon === "pistolDouble")
+        ) {
             let reloadElapsed = Date.now() - player.reloadStart;
             let progress = Math.min(reloadElapsed / player.reloadDuration, 1);
             let barWidth = 50;
@@ -1711,6 +2443,7 @@ document.addEventListener("contextmenu", function (e) {
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             ctx.fillStyle = player.penaltyActive ? "grey" : "green";
             ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
             const QUICK_RELOAD_ZONE_START = 0.3;
             const QUICK_RELOAD_ZONE_END = 0.4;
             let targetX = barX + barWidth * QUICK_RELOAD_ZONE_START;
@@ -1725,6 +2458,7 @@ document.addEventListener("contextmenu", function (e) {
             ctx.stroke();
         }
 
+        // Crossbow reload bar
         if (player.weapon === "crossbow" && player.crossbowReloading) {
             let reloadElapsed = Date.now() - player.crossbowReloadStart;
             let progress = Math.min(reloadElapsed / player.crossbowReloadTime, 1);
@@ -1739,6 +2473,7 @@ document.addEventListener("contextmenu", function (e) {
         }
     }
 
+    // (#1) & (#3) Already integrated custom arms & guns, continuing...
     function drawZombie(z) {
         ctx.strokeStyle = z.elite ? "purple" : "#330000";
         ctx.lineWidth = 2;
@@ -1749,33 +2484,54 @@ document.addEventListener("contextmenu", function (e) {
             ctx.globalAlpha = z.deathTimer / z.initialDeathTimer;
         }
 
-        // Draw body parts based on limb attachment status.
+        // Boss HP bar
+        if (z.isBoss) {
+            let barWidth = 80;
+            let barHeight = 8;
+            let healthRatio = z.health / z.maxHealth;
+            ctx.save();
+            ctx.translate(-barWidth / 2, -(z.radius + 30));
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(0, 0, barWidth, barHeight);
+
+            ctx.fillStyle = "red";
+            ctx.fillRect(0, 0, barWidth * healthRatio, barHeight);
+            ctx.restore();
+        }
+
+        // Head
         if (z.limbs.head.attached) {
             ctx.beginPath();
             ctx.arc(z.limbs.head.x, z.limbs.head.y, z.limbs.head.radius, 0, Math.PI * 2);
             ctx.stroke();
         }
 
+        // Body
         ctx.beginPath();
         ctx.moveTo(0, -5);
         ctx.lineTo(0, 15);
         ctx.stroke();
 
+        // Arms with random swing (#1)
         if (z.limbs.leftArm.attached) {
+            let leftArmSwing = z.armSwingAmplitude * Math.sin(z.walkCycle + z.leftArmPhase);
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(z.limbs.leftArm.x, z.limbs.leftArm.y);
+            // visually offset the default limb location
+            ctx.lineTo(z.limbs.leftArm.x + leftArmSwing, z.limbs.leftArm.y);
             ctx.stroke();
         }
         if (z.limbs.rightArm.attached) {
+            let rightArmSwing = z.armSwingAmplitude * Math.sin(z.walkCycle + z.rightArmPhase);
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(z.limbs.rightArm.x, z.limbs.rightArm.y);
+            ctx.lineTo(z.limbs.rightArm.x + rightArmSwing, z.limbs.rightArm.y);
             ctx.stroke();
         }
 
+        // Legs
         if (z.crawling) {
-            // Simplified crawling animation.
+            // Simple crawling
             ctx.beginPath();
             ctx.moveTo(0, 15);
             ctx.lineTo(-5, 20);
@@ -1783,17 +2539,16 @@ document.addEventListener("contextmenu", function (e) {
             ctx.lineTo(5, 20);
             ctx.stroke();
         } else {
-            // Draw legs only if attached, and use walk cycle.
             if (z.limbs.leftLeg.attached) {
-                ctx.beginPath();
                 let leftLegOffset = Math.sin(z.walkCycle) * 5;
+                ctx.beginPath();
                 ctx.moveTo(0, 15);
                 ctx.lineTo(z.limbs.leftLeg.x + leftLegOffset, z.limbs.leftLeg.y);
                 ctx.stroke();
             }
             if (z.limbs.rightLeg.attached) {
-                ctx.beginPath();
                 let rightLegOffset = Math.sin(z.walkCycle + Math.PI) * 5;
+                ctx.beginPath();
                 ctx.moveTo(0, 15);
                 ctx.lineTo(z.limbs.rightLeg.x + rightLegOffset, z.limbs.rightLeg.y);
                 ctx.stroke();
@@ -1835,41 +2590,5 @@ document.addEventListener("contextmenu", function (e) {
         draw();
         requestAnimationFrame(gameLoop);
     }
-
     gameLoop();
-
-    // ---------------------
-    // TEST MODE MENU FUNCTIONS
-    // ---------------------
-    function openTestModeMenu() {
-        let container = document.getElementById("testModeItemsContainer");
-        container.innerHTML = "";
-        availableShopItems.forEach(item => {
-            let btn = document.createElement("button");
-            btn.innerHTML = "Test: " + item.name + "<br>" + item.description;
-            btn.style.display = "block";
-            btn.style.margin = "5px auto";
-            btn.addEventListener("click", () => {
-                item.effect();
-                alert(item.name + " effect applied.");
-            });
-            container.appendChild(btn);
-        });
-        document.getElementById("testModeMenuOverlay").style.display = "block";
-    }
-
-    document.getElementById("closeTestModeMenuButton").addEventListener("click", () => {
-        document.getElementById("testModeMenuOverlay").style.display = "none";
-    });
-
-    document.getElementById("resetTestUpgradesButton").addEventListener("click", () => {
-        player.rapidFireLevel = 0;
-        player.damageMultiplier = 1;
-        player.healthRegenRate = 0;
-        player.extraArmor = 0;
-        player.critChance = 0;
-        player.explosiveRounds = false;
-        player.scoreMultiplier = 1;
-        alert("Upgrades have been reset.");
-    });
 })();
