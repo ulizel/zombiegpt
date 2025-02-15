@@ -1633,8 +1633,7 @@ document.addEventListener("contextmenu", function (e) {
             player.lastShotTime = Date.now();
         }
         else if (
-            player.weapon === "sniperRifle" ||
-            player.weapon === "freezeCannon" || player.weapon === "lightningGun" ||
+            player.weapon === "sniperRifle" || player.weapon === "lightningGun" ||
             player.weapon === "bfg9000" || player.weapon === "acidGun" ||
             player.weapon === "grenadeLauncher" || player.weapon === "dualUzis"
         ) {
@@ -1916,7 +1915,7 @@ document.addEventListener("contextmenu", function (e) {
                 rightLeg: { attached: false }
             },
             elite: false,
-            wanderOffset: (Math.random() - 0.5) * 0.4, 
+            wanderOffset: (Math.random() - 0.5) * 0.4,
             armSwingAmplitude: 1.5,
             leftArmPhase: Math.random() * Math.PI * 2,
             rightArmPhase: Math.random() * Math.PI * 2,
@@ -1946,6 +1945,12 @@ document.addEventListener("contextmenu", function (e) {
     function distance(x1, y1, x2, y2) {
         return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     }
+    function normalizeAngle(angle) {
+        while (angle < -Math.PI) angle += 2 * Math.PI;
+        while (angle > Math.PI) angle -= 2 * Math.PI;
+        return angle;
+    }
+    
 
     // ---------------------
     // BLOOD SPLATTER
@@ -2233,6 +2238,81 @@ document.addEventListener("contextmenu", function (e) {
                 }
             }
         }
+              // ENHANCEMENT: Freeze Gun - Blowing Freezing Air Effect (START)
+              if (player.weapon === "freezeCannon" && mouseDown) {
+                let freezeFireInterval = 30; // adjust firing rate as desired
+                if (Date.now() - player.lastShotTime >= freezeFireInterval) {
+                    let angle = player.angle;
+                    // Get the muzzle position from which the air is blown
+                    let muzzle = getMuzzlePosition(player.x, player.y, angle, player.weapon);
+                    let coneLength = 250;         // maximum reach of the freezing air
+                    let coneSpread = Math.PI / 6;   // about 20° spread on each side (~40° total)
+    
+                    // For each zombie, check if it is within the cone
+                    for (let z of zombies) {
+                        // Vector from muzzle to zombie
+                        let dx = z.x - muzzle.x;
+                        let dy = z.y - muzzle.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist <= coneLength) {
+                            // Compute the angle from muzzle to zombie and the difference from player angle
+                            let angleToZombie = Math.atan2(dy, dx);
+                            let diff = Math.abs(normalizeAngle(angleToZombie - angle));
+                            if (diff <= coneSpread) {
+                                // Zombie is within the freezing air cone: increase freeze effect
+                                z.freezeEffect = (z.freezeEffect || 0) + 0.03;
+                                if (z.freezeEffect > 1) { 
+                                    z.freezeEffect = 1;
+                                }
+                                // Once fully frozen, kill the zombie
+                                if (z.freezeEffect >= 1 && !z.dying) {
+                                    zombieKills++;
+                                    playZombieKillSound();
+                                    spawnBloodSplatter(z.x, z.y);
+                                    z.dying = true;
+                                    z.deathTimer = 60;
+                                    z.initialDeathTimer = 60;
+                                    z.fallAngle = 0;
+                                    z.fallVector = { dx: 0, dy: 0 };
+                                    if (!z.currencyDropped) {
+                                        maybeDropCurrency(z.x, z.y, z.elite);
+                                        z.currencyDropped = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+    
+                  
+                   // ENHANCEMENT: Freeze Gun - Revamped Freezing Air Particles (START)
+                let particleCount = 100; // Particle count
+                for (let i = 0; i < particleCount; i++) {
+                    // Use a squared random value to bias particles near the muzzle
+                    let offset = Math.pow(Math.random(), 0.6) * coneLength;
+                    // Reduce spread with distance: farther particles have a slightly narrower spread
+                    let dynamicSpread = coneSpread * (1 - offset / (coneLength * 1.3));
+                    let angleOffset = (Math.random() * 2 - 1) * dynamicSpread;
+                    let spawnX = muzzle.x + Math.cos(angle + angleOffset) * offset;
+                    let spawnY = muzzle.y + Math.sin(angle + angleOffset) * offset;
+                    // Particle drift
+                    let vx = Math.cos(angle) * (2 + Math.random() * 0.3) + (Math.random() - 0.5) * 0.1;
+                    let vy = Math.sin(angle) * (2 + Math.random() * 0.3) + (Math.random() - 0.5) * 0.1;
+                    // Set a moderate particle size and a longer lifespan for a more smoke-like effect
+                    let size = 1 + Math.random() * 3;   // size 
+                    let life = 7 + Math.floor(Math.random() * 20);  // lifespan 
+                    // Choose between white and bright cyan for an icy effect (ALPHA will be replaced during drawing)
+                    let colorChoice = Math.random() < 0.9 
+                        ? "rgba(255,255,255,0.2)" 
+                        : "rgba(207, 238, 250, 0.5)";
+                    spawnParticle(spawnX, spawnY, vx, vy, size, life, colorChoice);
+                }
+                // ENHANCEMENT: Freeze Gun - Revamped Freezing Air Particles (END)
+                    player.lastShotTime = Date.now();
+                }
+            }
+            // ENHANCEMENT: Freeze Gun - Blowing Freezing Air Effect (END)
+    
+
 
         // Update bullets
         for (let i = bullets.length - 1; i >= 0; i--) {
@@ -2285,7 +2365,7 @@ document.addEventListener("contextmenu", function (e) {
                 shotgun: "rgba(139,69,19,ALPHA)",
                 crossbow: "rgba(160,82,45,ALPHA)",
                 sniperRifle: "rgba(255,0,0,ALPHA)",
-                revolver: "rgba(60,60,60,ALPHA)", 
+                revolver: "rgba(60,60,60,ALPHA)",
                 plasmaRifle: "rgba(0,255,255,ALPHA)",
                 freezeCannon: "rgba(0,255,255,ALPHA)",
                 lightningGun: "rgba(255,255,0,ALPHA)",
@@ -2326,7 +2406,11 @@ document.addEventListener("contextmenu", function (e) {
                 if (player.powerUps.slowMotion) effectiveSpeed *= 0.5;
                 if (freezeEndTime && Date.now() < freezeEndTime) effectiveSpeed *= 0.5;
                 if (z.crawling) effectiveSpeed *= 0.3;
-
+                // ENHANCEMENT: Freeze Gun - Zombie Freeze Slowdown (START)
+                if (z.freezeEffect) {
+                    effectiveSpeed *= (1 - z.freezeEffect);
+                }
+                // ENHANCEMENT: Freeze Gun - Zombie Freeze Slowdown (END)
                 const baseAngle = Math.atan2(player.y - z.y, player.x - z.x);
                 z.wanderOffset += (Math.random() - 0.5) * 0.055; // the last value increases the zombie wandering 
                 let angle = baseAngle + z.wanderOffset;
@@ -2421,7 +2505,7 @@ document.addEventListener("contextmenu", function (e) {
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     let b = bullets[j];
 
-                    // Enhancement: Plasma Rifle Plasma Hit Effect - START
+                    // Plasma Rifle Plasma Hit Effect - START
                     if (b.source === "plasmaRifle" && distance(z.x, z.y, b.x, b.y) < z.radius + 5) {
                         // Spawn the plasma hit effect at the bullet's position
                         plasmaEffects.push({
@@ -2458,6 +2542,30 @@ document.addEventListener("contextmenu", function (e) {
                         continue; // Skip further collision checks for this bullet
                     }
                     // Enhancement: Plasma Rifle Plasma Hit Effect - END
+                    // ENHANCEMENT: Freeze Gun - Freeze Bullet Collision (START)
+                    if (b.source === "freezeCannon" && distance(z.x, z.y, b.x, b.y) < z.radius + 5) {
+                        // Initialize/increase freeze effect on zombie
+                        z.freezeEffect = (z.freezeEffect || 0) + 0.3;
+                        if (z.freezeEffect > 1) z.freezeEffect = 1;
+                        bullets.splice(j, 1);
+                        // If fully frozen, kill the zombie
+                        if (z.freezeEffect >= 1) {
+                            zombieKills++;
+                            playZombieKillSound();
+                            spawnBloodSplatter(z.x, z.y);
+                            z.dying = true;
+                            z.deathTimer = 60;
+                            z.initialDeathTimer = 60;
+                            z.fallAngle = 0;
+                            z.fallVector = { dx: 0, dy: 0 };
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
+                        }
+                        continue; // Skip further collision checks for this bullet
+                    }
+                    // ENHANCEMENT: Freeze Gun - Freeze Bullet Collision (END)
 
 
                     if (b.source === "flamethrower") {
@@ -2646,6 +2754,31 @@ document.addEventListener("contextmenu", function (e) {
     // ---------------------
     function draw() {
         ctx.clearRect(0, 0, width, height);
+          
+             // ENHANCEMENT: Freeze Gun - Muzzle Swirl Effect (START)
+             if (player.weapon === "freezeCannon" && mouseDown) {
+                let angle = player.angle;
+                let muzzle = getMuzzlePosition(player.x, player.y, angle, player.weapon);
+                ctx.save();
+                ctx.translate(muzzle.x, muzzle.y);
+                ctx.rotate(angle);
+                // Draw a subtle swirling arc to represent the blowing air
+                let swirlRadius = 20;
+                let swirlStart = (Date.now() % 360) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(0, 0, swirlRadius, swirlStart, swirlStart + Math.PI, false);
+                ctx.strokeStyle = "rgba(200,240,255,0.5)";
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                ctx.restore();
+            }
+            // ENHANCEMENT: Freeze Gun - Muzzle Swirl Effect (END)
+    
+    
+
+    
+
+
         // Enhancement: Plasma Rifle Plasma Hit Effect - START
         for (let effect of plasmaEffects) {
             ctx.save();
@@ -3115,6 +3248,20 @@ document.addEventListener("contextmenu", function (e) {
 
     function drawZombie(z) {
         ctx.strokeStyle = z.elite ? "purple" : "#330000";
+        // ENHANCEMENT: Freeze Gun - Zombie Freeze Visuals (START)
+        if (z.freezeEffect) {
+            let factor = z.freezeEffect; // value between 0 and 1
+            let orig;
+            if (z.elite) orig = { r: 128, g: 0, b: 128 };
+            else orig = { r: 51, g: 0, b: 0 };
+            let r = Math.floor(orig.r * (1 - factor) + 255 * factor);
+            let g = Math.floor(orig.g * (1 - factor) + 255 * factor);
+            let b = Math.floor(orig.b * (1 - factor) + 255 * factor);
+            ctx.strokeStyle = "rgb(" + r + "," + g + "," + b + ")";
+        } else {
+            ctx.strokeStyle = z.elite ? "purple" : "#330000";
+        }
+        // ENHANCEMENT: Freeze Gun - Zombie Freeze Visuals (END)
         ctx.lineWidth = 2;
         ctx.save();
         ctx.translate(z.x, z.y);
