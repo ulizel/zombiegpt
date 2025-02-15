@@ -207,7 +207,7 @@ document.addEventListener("contextmenu", function (e) {
     let gameStartTime = 0;
     let totalPausedTime = 0;   // Accumulates total pause duration
     let pauseStartTime = 0;    // Records when a pause starts
-
+    let screenShake = 0;
     let gameOver = false;
     // Game states: "menu", "playing", "paused", "shop"
     let gameState = "menu";
@@ -264,7 +264,7 @@ document.addEventListener("contextmenu", function (e) {
         radius: 20,
         ammo: 6,
         magazine: 6,
-        reloadTime: 2000,
+        reloadTime: 1500,
         reloading: false,
         reloadStart: 0,
         recoil: 0,
@@ -287,7 +287,7 @@ document.addEventListener("contextmenu", function (e) {
         lastRegenTime: Date.now(),
         crossbowAmmo: 5,
         crossbowReloading: false,
-        crossbowReloadTime: 1500,
+        crossbowReloadTime: 1000,
         crossbowReloadStart: 0,
         laserCooldown: 0,
         laserAmmo: 50,
@@ -306,7 +306,7 @@ document.addEventListener("contextmenu", function (e) {
     const powerUpTypes = [
         "shield", "machineGun", "shotgun", "speed", "bomb", "extraAmmo", "slowMotion", "laser",
         "sniperRifle", "miniGun", "revolver", "plasmaRifle", "freezeCannon", "lightningGun",
-        "bfg9000", "acidGun", "grenadeLauncher", "dualUzis"
+        "bfg9000", "acidGun", "grenadeLauncher", "dualUzis", "pistolDouble"
     ];
 
     const powerUpColors = {
@@ -327,7 +327,9 @@ document.addEventListener("contextmenu", function (e) {
         bfg9000: "lime",
         acidGun: "chartreuse",
         grenadeLauncher: "olive",
+        pistolDouble: "olive",
         dualUzis: "slategray"
+
     };
 
     const powerUpNames = {
@@ -348,6 +350,7 @@ document.addEventListener("contextmenu", function (e) {
         bfg9000: "BFG 9000",
         acidGun: "Acid Gun",
         grenadeLauncher: "Grenade Launcher",
+        pistolDouble: "Double Pistol",
         dualUzis: "Dual Uzis"
     };
 
@@ -375,7 +378,7 @@ document.addEventListener("contextmenu", function (e) {
                 const gunOptions = [
                     "pistolDouble", "machineGun", "shotgun", "flamethrower", "crossbow", "rocketLauncher", "laser",
                     "sniperRifle", "miniGun", "revolver", "plasmaRifle", "freezeCannon", "lightningGun",
-                    "bfg9000", "acidGun", "grenadeLauncher", "dualUzis"
+                    "bfg9000", "acidGun", "grenadeLauncher", "dualUzis", "sniperRifle"
                 ];
                 let randomIndex = Math.floor(Math.random() * gunOptions.length);
                 let selectedGun = gunOptions[randomIndex];
@@ -1231,8 +1234,9 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "sniperRifle";
                 player.activeGun = {
                     type: "sniperRifle",
-                    ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 10
+                    ammo: (gameMode === "test" || gameMode === "god") ? Infinity : 10 // or any other default ammo value
                 };
+
                 break;
             case "miniGun":
                 player.weapon = "miniGun";
@@ -1301,17 +1305,17 @@ document.addEventListener("contextmenu", function (e) {
 
     function getMuzzlePosition(px, py, angle, weapon) {
         let offsetMap = {
-            pistol: 20,
-            pistolDouble: 20,
-            machineGun: 25,
-            miniGun: 25,
+            pistol: 35,
+            pistolDouble: 35,
+            machineGun: 45,
+            miniGun: 50,
             shotgun: 30,
             flamethrower: 20,
             crossbow: 25,
             rocketLauncher: 25,
-            laser: 20,
+            laser: 30,
             sniperRifle: 35,
-            revolver: 22, // slight offset
+            revolver: 20, // slight offset
             plasmaRifle: 25,
             freezeCannon: 25,
             lightningGun: 25,
@@ -1337,7 +1341,11 @@ document.addEventListener("contextmenu", function (e) {
         let bulletSpeed = 15;
         // ADDED/CHANGED: revolve bullet near-instant
         if (player.weapon === "revolver") {
-            bulletSpeed = 50;
+            bulletSpeed = 30;
+        }
+
+        if (player.weapon === "sniperRifle") {
+            bulletSpeed = 45; // or any other value you want to set
         }
 
         // Double Pistol
@@ -1347,7 +1355,7 @@ document.addEventListener("contextmenu", function (e) {
                 reloadGun();
                 return;
             }
-            let spreadAngle = 0.1;
+            let spreadAngle = 0.035;
             let angleLeft = angle - spreadAngle / 2;
             let angleRight = angle + spreadAngle / 2;
 
@@ -1374,6 +1382,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, "pistolDouble"); // ADDED: knockback
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             player.lastShotTime = Date.now();
             return;
         }
@@ -1399,6 +1411,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, "pistol");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             player.lastShotTime = Date.now();
         }
         else if (player.weapon === "machineGun") {
@@ -1421,6 +1437,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, "machineGun");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1447,6 +1467,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, "miniGun");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1459,7 +1483,7 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "pistol";
                 return;
             }
-            let offsets = [-Math.PI / 12, -Math.PI / 24, 0, Math.PI / 24, Math.PI / 12];
+            let offsets = [-Math.PI / 16, -Math.PI / 28, 0, Math.PI / 28, Math.PI / 16];
             for (let offset of offsets) {
                 let newAngle = angle + offset;
                 let bullet = {
@@ -1477,6 +1501,10 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, "shotgun");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1498,9 +1526,19 @@ document.addEventListener("contextmenu", function (e) {
                 source: "rocket"
             };
             bullets.push(rocket);
-            player.rocketAmmo--;
+            //  player.rocketAmmo--; I removed this
             playRocketLaunchSound();
             applyKnockback(angle, "rocketLauncher");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
+            // start of addition - I added this for rocket bullet count
+            if (player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+            }
+            // end of addition
             spawnParticle(
                 muzzle.x,
                 muzzle.y,
@@ -1531,6 +1569,10 @@ document.addEventListener("contextmenu", function (e) {
             setTimeout(() => { player.crossbowReloading = false; }, player.crossbowReloadTime);
             playGunshotSound();
             applyKnockback(angle, "crossbow");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    
+    player.lastShotTime = Date.now();
             player.lastShotTime = Date.now();
         }
         // Now for new guns:
@@ -1549,12 +1591,14 @@ document.addEventListener("contextmenu", function (e) {
                 dy: Math.sin(angle) * bulletSpeed,
                 spawnTime: Date.now(),
                 source: "revolver",
-                penetration: 2 // can pass 1 zombie
+                penetration: 2 // can pass x zombie
             };
             bullets.push(bullet);
             revolveShots--;
             playGunshotSound();
             applyKnockback(angle, "revolver");
+            // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
             player.lastShotTime = Date.now();
         }
         else if (
@@ -1582,6 +1626,8 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, player.weapon);
+             // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
             player.lastShotTime = Date.now();
         }
     }
@@ -1596,6 +1642,9 @@ document.addEventListener("contextmenu", function (e) {
             revolveReloadDuration = revolveReloadTime;
             revolvePenaltyActive = false;
             playReloadStartSound();
+             // Add screen shake (increase intensity by 2, capped at 10)
+    screenShake = Math.min(screenShake + 2, 10);
+    player.lastShotTime = Date.now();
         }
     }
 
@@ -1685,7 +1734,7 @@ document.addEventListener("contextmenu", function (e) {
     // ---------------------
     // ZOMBIE SPAWNING
     // ---------------------
-    setInterval(spawnZombie, 1000);
+    setInterval(spawnZombie, 2000);
 
     function spawnZombie() {
         if (gameOver || gameState !== "playing") return;
@@ -1875,7 +1924,7 @@ document.addEventListener("contextmenu", function (e) {
         for (let i = 0; i < count; i++) {
             let angle = Math.random() * Math.PI * 2;
             let speed = Math.random() * 4;
-            spawnParticle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 2 + Math.random() * 2, 30, "rgba(220,20,60,ALPHA)");
+            spawnParticle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 1.5 + Math.random() * 2, 30, "rgba(220,20,60,ALPHA)");
         }
     }
 
@@ -1989,6 +2038,12 @@ document.addEventListener("contextmenu", function (e) {
     // GAME UPDATE
     // ---------------------
     function update() {
+
+        // Gradually reduce screen shake intensity
+        screenShake *= 0.9;
+        if (screenShake < 0.1) screenShake = 0;
+
+
         if (gameState !== "playing") return;
 
         if (player.healthRegenRate > 0 && Date.now() - player.lastRegenTime >= 5000) {
@@ -2505,7 +2560,12 @@ document.addEventListener("contextmenu", function (e) {
     // ---------------------
     function draw() {
         ctx.clearRect(0, 0, width, height);
-
+        // Compute a random offset based on the current shake intensity
+        let shakeX = (Math.random() - 0.5) * screenShake;
+        let shakeY = (Math.random() - 0.5) * screenShake;
+        // Save the current state and translate the canvas
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
         drawPowerUps();
 
         if (gameMode === "god") {
@@ -2633,12 +2693,13 @@ document.addEventListener("contextmenu", function (e) {
         // Custom mouse cursor
         ctx.save();
         ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 0, 0, 0.7)";
+        ctx.arc(mouse.x, mouse.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.strokeStyle = "white";
         ctx.stroke();
+        ctx.restore();
         ctx.restore();
     }
 
