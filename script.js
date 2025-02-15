@@ -1449,15 +1449,20 @@ document.addEventListener("contextmenu", function (e) {
                 player.weapon = "pistol";
                 return;
             }
-            let bullet = {
-                x: muzzle.x,
-                y: muzzle.y,
-                dx: Math.cos(angle) * bulletSpeed,
-                dy: Math.sin(angle) * bulletSpeed,
-                spawnTime: Date.now(),
-                source: "miniGun"
-            };
-            bullets.push(bullet);
+            let spread = 0.05; // Define a spread angle
+            let bulletCount = 3; // Number of bullets per shot
+            for (let i = 0; i < bulletCount; i++) {
+                let spreadAngle = angle + (Math.random() - 0.5) * spread;
+                let bullet = {
+                    x: muzzle.x,
+                    y: muzzle.y,
+                    dx: Math.cos(spreadAngle) * bulletSpeed,
+                    dy: Math.sin(spreadAngle) * bulletSpeed,
+                    spawnTime: Date.now(),
+                    source: "miniGun"
+                };
+                bullets.push(bullet);
+            }
             if (!(gameMode === "god" || gameMode === "test")) {
                 player.activeGun.ammo--;
             }
@@ -1571,7 +1576,7 @@ document.addEventListener("contextmenu", function (e) {
             player.lastShotTime = Date.now();
             player.lastShotTime = Date.now();
         }
-        // Now for new guns:
+        // Enhancement: Revolver Bullet Near-instant - START (ADDED/CHANGED: revolveShots usage, near-instant bullet, +1 damage) 
         else if (player.weapon === "revolver") {
             // ADDED/CHANGED: revolveShots usage, near-instant bullet, +1 damage
             if (revolveReloading) return;
@@ -1579,12 +1584,13 @@ document.addEventListener("contextmenu", function (e) {
                 reloadRevolver();
                 return;
             }
-            // Fire
+
+            let spread = (Math.random() - 0.5) * 0.1;
             let bullet = {
-                x: muzzle.x,
-                y: muzzle.y,
-                dx: Math.cos(angle) * bulletSpeed,
-                dy: Math.sin(angle) * bulletSpeed,
+                x: muzzle.x + Math.cos(angle) * 2 + Math.random() * 2 - 1,
+                y: muzzle.y + Math.sin(angle) * 2 + Math.random() * 2 - 1,
+                dx: Math.cos(angle + spread) * (bulletSpeed + Math.random() * 2 - 1),
+                dy: Math.sin(angle + spread) * (bulletSpeed + Math.random() * 2 - 1),
                 spawnTime: Date.now(),
                 source: "revolver",
                 penetration: 2 // can pass x zombie
@@ -1594,7 +1600,10 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "revolver");
             // Add screen shake (increase intensity by 2, capped at 10)
-            screenShake = Math.min(screenShake + 2, 10);
+            screenShake = Math.min(screenShake + 5, 5);
+            // Add recoil offset effect
+            player.x += Math.cos(angle) * 2;
+            player.y += Math.sin(angle) * 2;
             player.lastShotTime = Date.now();
         }
         // Enhancement: Plasma Rifle Plasma Sphere
@@ -2267,7 +2276,7 @@ document.addEventListener("contextmenu", function (e) {
             b.x += b.dx;
             b.y += b.dy;
 
-            // More smoke for revolver
+            // Bullet smoke color
             let colorMap = {
                 pistol: "rgba(60,60,60,ALPHA)",
                 pistolDouble: "rgba(60,60,150,ALPHA)",
@@ -2276,7 +2285,7 @@ document.addEventListener("contextmenu", function (e) {
                 shotgun: "rgba(139,69,19,ALPHA)",
                 crossbow: "rgba(160,82,45,ALPHA)",
                 sniperRifle: "rgba(255,0,0,ALPHA)",
-                revolver: "rgba(128,0,0,ALPHA)", // dark red for revolver
+                revolver: "rgba(60,60,60,ALPHA)", 
                 plasmaRifle: "rgba(0,255,255,ALPHA)",
                 freezeCannon: "rgba(0,255,255,ALPHA)",
                 lightningGun: "rgba(255,255,0,ALPHA)",
@@ -2289,10 +2298,12 @@ document.addEventListener("contextmenu", function (e) {
             };
             let bulletColor = colorMap[b.source] || "rgba(0,0,0,ALPHA)";
 
-            // Denser smoke for revolver bullet
+            // Denser smoke for revolver bullet in a straight line
             if (b.source === "revolver") {
-                for (let s = 0; s < 3; s++) {
-                    spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 2, 15, bulletColor);
+                let angle = Math.atan2(b.dy, b.dx);
+                for (let s = 0; s < 10; s++) {
+                    let distance = s * 3; // space particles evenly
+                    spawnParticle(b.x + Math.cos(angle) * distance, b.y + Math.sin(angle) * distance, 0, 0, 2, 10, bulletColor);
                 }
             } else {
                 spawnParticle(b.x, b.y, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, 1, 15, bulletColor);
