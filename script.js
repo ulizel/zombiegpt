@@ -220,7 +220,7 @@ document.addEventListener("contextmenu", function (e) {
     let decapitatedHeads = [];
     let detachedLimbs = [];
     let currencyDrops = [];
-
+    let plasmaEffects = [];
     // For continuous flame sound.
     let flameSoundOscillator = null;
     let flameSoundGain = null;
@@ -1383,9 +1383,7 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "pistolDouble"); // ADDED: knockback
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
             player.lastShotTime = Date.now();
             return;
         }
@@ -1412,9 +1410,7 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "pistol");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
             player.lastShotTime = Date.now();
         }
         else if (player.weapon === "machineGun") {
@@ -1438,9 +1434,9 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "machineGun");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
+
+            player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1468,9 +1464,9 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "miniGun");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
+
+            player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1502,9 +1498,9 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "shotgun");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
+
+            player.lastShotTime = Date.now();
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
                 player.weapon = "pistol";
@@ -1530,9 +1526,9 @@ document.addEventListener("contextmenu", function (e) {
             playRocketLaunchSound();
             applyKnockback(angle, "rocketLauncher");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
+
+            player.lastShotTime = Date.now();
             // start of addition - I added this for rocket bullet count
             if (player.activeGun.ammo <= 0) {
                 player.activeGun = { type: null, ammo: 0 };
@@ -1570,9 +1566,9 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "crossbow");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    
-    player.lastShotTime = Date.now();
+            screenShake = Math.min(screenShake + 2, 10);
+
+            player.lastShotTime = Date.now();
             player.lastShotTime = Date.now();
         }
         // Now for new guns:
@@ -1598,11 +1594,37 @@ document.addEventListener("contextmenu", function (e) {
             playGunshotSound();
             applyKnockback(angle, "revolver");
             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
+            screenShake = Math.min(screenShake + 2, 10);
+            player.lastShotTime = Date.now();
+        }
+        // Enhancement: Plasma Rifle Plasma Sphere
+        else if (player.weapon === "plasmaRifle") {
+            if (!player.activeGun || player.activeGun.ammo <= 0) {
+                player.activeGun = { type: null, ammo: 0 };
+                player.weapon = "pistol";
+                return;
+            }
+            let plasmaBullet = {
+                x: muzzle.x,
+                y: muzzle.y,
+                dx: Math.cos(angle) * bulletSpeed,
+                dy: Math.sin(angle) * bulletSpeed,
+                spawnTime: Date.now(),
+                source: "plasmaRifle",   // marks this as a plasma rifle bullet
+                plasma: true,            // additional flag (if needed later)
+                radius: 6                // set the bullet's sphere radius
+            };
+            bullets.push(plasmaBullet);
+            if (!(gameMode === "god" || gameMode === "test")) {
+                player.activeGun.ammo--;
+            }
+            playGunshotSound();
+            applyKnockback(angle, "plasmaRifle");
+            screenShake = Math.min(screenShake + 1, 10);
             player.lastShotTime = Date.now();
         }
         else if (
-            player.weapon === "sniperRifle" || player.weapon === "plasmaRifle" ||
+            player.weapon === "sniperRifle" ||
             player.weapon === "freezeCannon" || player.weapon === "lightningGun" ||
             player.weapon === "bfg9000" || player.weapon === "acidGun" ||
             player.weapon === "grenadeLauncher" || player.weapon === "dualUzis"
@@ -1626,8 +1648,8 @@ document.addEventListener("contextmenu", function (e) {
             }
             playGunshotSound();
             applyKnockback(angle, player.weapon);
-             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
+            // Add screen shake (increase intensity by 2, capped at 10)
+            screenShake = Math.min(screenShake + 2, 10);
             player.lastShotTime = Date.now();
         }
     }
@@ -1642,9 +1664,9 @@ document.addEventListener("contextmenu", function (e) {
             revolveReloadDuration = revolveReloadTime;
             revolvePenaltyActive = false;
             playReloadStartSound();
-             // Add screen shake (increase intensity by 2, capped at 10)
-    screenShake = Math.min(screenShake + 2, 10);
-    player.lastShotTime = Date.now();
+            // Add screen shake (increase intensity by 2, capped at 10)
+            screenShake = Math.min(screenShake + 2, 10);
+            player.lastShotTime = Date.now();
         }
     }
 
@@ -1885,7 +1907,7 @@ document.addEventListener("contextmenu", function (e) {
                 rightLeg: { attached: false }
             },
             elite: false,
-            wanderOffset: (Math.random() - 0.5) * 0.4,
+            wanderOffset: (Math.random() - 0.5) * 0.4, 
             armSwingAmplitude: 1.5,
             leftArmPhase: Math.random() * Math.PI * 2,
             rightArmPhase: Math.random() * Math.PI * 2,
@@ -2295,7 +2317,7 @@ document.addEventListener("contextmenu", function (e) {
                 if (z.crawling) effectiveSpeed *= 0.3;
 
                 const baseAngle = Math.atan2(player.y - z.y, player.x - z.x);
-                z.wanderOffset += (Math.random() - 0.5) * 0.01;
+                z.wanderOffset += (Math.random() - 0.5) * 0.055; // the last value increases the zombie wandering 
                 let angle = baseAngle + z.wanderOffset;
 
                 z.walkCycle += effectiveSpeed * 0.03;
@@ -2387,6 +2409,46 @@ document.addEventListener("contextmenu", function (e) {
             if (!z.dying) {
                 for (let j = bullets.length - 1; j >= 0; j--) {
                     let b = bullets[j];
+
+                    // Enhancement: Plasma Rifle Plasma Hit Effect - START
+                    if (b.source === "plasmaRifle" && distance(z.x, z.y, b.x, b.y) < z.radius + 5) {
+                        // Spawn the plasma hit effect at the bullet's position
+                        plasmaEffects.push({
+                            x: b.x,
+                            y: b.y,
+                            startTime: Date.now(),
+                            duration: 200,      // Duration of effect in milliseconds
+                            maxRadius: 40,      // Maximum effect radius in pixels
+                            currentRadius: 0,
+                            alpha: 1
+                        });
+                        // Apply plasma damage (adjust baseDamage as needed)
+                        let baseDamage = 2;
+                        let damage = baseDamage * player.damageMultiplier;
+                        if (Math.random() < player.critChance) damage *= 2;
+                        z.health -= damage;
+                        if (z.health <= 0 && !z.dying) {
+                            zombieKills++;
+                            playZombieKillSound();
+                            spawnBloodSplatter(z.x, z.y);
+                            z.dying = true;
+                            z.deathTimer = 60;
+                            z.initialDeathTimer = 60;
+                            let fallImpactFactor = 0.5;
+                            z.fallAngle = Math.atan2(b.dy, b.dx);
+                            z.fallVector = { dx: b.dx * fallImpactFactor, dy: b.dy * fallImpactFactor };
+                            if (!z.currencyDropped) {
+                                maybeDropCurrency(z.x, z.y, z.elite);
+                                z.currencyDropped = true;
+                            }
+                        }
+                        // Remove the plasma rifle bullet from the bullets array
+                        bullets.splice(j, 1);
+                        continue; // Skip further collision checks for this bullet
+                    }
+                    // Enhancement: Plasma Rifle Plasma Hit Effect - END
+
+
                     if (b.source === "flamethrower") {
                         collisionTolerance = 10;
                     } else if (b.source === "revolver") {
@@ -2519,6 +2581,19 @@ document.addEventListener("contextmenu", function (e) {
             }
         }
 
+        // Enhancement: Plasma Rifle Plasma Hit Effect - START
+        for (let i = plasmaEffects.length - 1; i >= 0; i--) {
+            let effect = plasmaEffects[i];
+            let elapsed = Date.now() - effect.startTime;
+            let progress = elapsed / effect.duration;
+            effect.currentRadius = effect.maxRadius * progress;
+            effect.alpha = 1 - progress;
+            if (progress >= 1) {
+                plasmaEffects.splice(i, 1);
+            }
+        }
+        // Enhancement: Plasma Rifle Plasma Hit Effect - END
+
         for (let i = decapitatedHeads.length - 1; i >= 0; i--) {
             let head = decapitatedHeads[i];
             head.x += head.vx;
@@ -2560,6 +2635,39 @@ document.addEventListener("contextmenu", function (e) {
     // ---------------------
     function draw() {
         ctx.clearRect(0, 0, width, height);
+        // Enhancement: Plasma Rifle Plasma Hit Effect - START
+        for (let effect of plasmaEffects) {
+            ctx.save();
+            // Draw the expanding plasma sphere with a radial gradient
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, effect.currentRadius, 0, Math.PI * 2);
+
+            // Replace the existing gradient stops with bright cyan stops
+            let gradient = ctx.createRadialGradient(
+                effect.x, effect.y, effect.currentRadius * 0.2,
+                effect.x, effect.y, effect.currentRadius
+            );
+            gradient.addColorStop(0, "rgba(0,255,255," + (effect.alpha * 0.8) + ")"); // bright cyan at the center
+            gradient.addColorStop(0.5, "rgba(0,255,255," + (effect.alpha * 0.8) + ")"); // bright cyan in the middle
+            gradient.addColorStop(1, "rgba(0,139,139," + (effect.alpha * 0.8) + ")");  // dark cyan at the edges with 20% transparency
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            // Optionally, add a few random lightning-like lines for extra effect
+            for (let j = 0; j < 3; j++) { // Adjust the number of lightning-like lines
+                ctx.beginPath(); // Start a new path
+                let angle = Math.random() * Math.PI * 2; // Random angle
+                let len = effect.currentRadius * (0.5 + Math.random() * 0.5); // Random length
+                ctx.moveTo(effect.x, effect.y); // Start at the center
+                ctx.lineTo(effect.x + Math.cos(angle) * len, effect.y + Math.sin(angle) * len); // Draw a lightning-like line
+                ctx.strokeStyle = "rgba(255,255,255," + (effect.alpha * 1) + ")"; // Plasma lightning color with some transparency
+                ctx.lineWidth = 0.8; // Adjust the line width
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        // Enhancement: Plasma Rifle Plasma Hit Effect - END
+
         // Compute a random offset based on the current shake intensity
         let shakeX = (Math.random() - 0.5) * screenShake;
         let shakeY = (Math.random() - 0.5) * screenShake;
@@ -2582,6 +2690,16 @@ document.addEventListener("contextmenu", function (e) {
         drawPlayer();
 
         for (let b of bullets) {
+            if (b.source === "plasmaRifle") { // Enhancement: Plasma Rifle Plasma Sphere drawing
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.fillStyle = "cyan"; // plasma color
+                ctx.beginPath();
+                ctx.arc(0, 0, b.radius || 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                continue; // Skip further drawing for this bullet
+            }
             if (b.source === "flamethrower") continue;
             if (b.source === "rocket") {
                 let rocketAngle = Math.atan2(b.dy, b.dx);
