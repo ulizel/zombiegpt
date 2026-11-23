@@ -2,12 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <!-- "Add to Home Screen" on iPhone launches the game full screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="zombieGPT">
+  <meta name="theme-color" content="#222222">
   <title>zombieGPT</title>
   <!-- Link to external CSS file -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+
+  <!-- On-screen touch controls (shown only on touch devices while playing) -->
+  <div id="touchControls">
+    <div id="moveStick" class="stick"><div class="knob"></div></div>
+    <div id="aimStick" class="stick"><div class="knob"></div></div>
+    <button id="touchPauseButton" class="touchButton" aria-label="Pause">&#10074;&#10074;</button>
+    <button id="touchReloadButton" class="touchButton" aria-label="Reload">&#10227;</button>
+  </div>
 
   <!-- Instructions Overlay -->
   <div id="instructions">
@@ -31,6 +46,8 @@
   <!-- Main Menu Overlay -->
   <div id="mainMenuOverlay">
     <h1>Zombie Shooter</h1>
+    <p class="touchOnly mobileHelp">Left thumb: move &middot; Right thumb: aim &amp; shoot<br>&#10227; reload (tap during reload for quick reload) &middot; &#10074;&#10074; pause</p>
+    <p id="rotateHint">Tip: rotate your phone to landscape for the best experience</p>
     <button id="startGameButton">Start Game</button>
     <button id="modesButton">Modes</button>
     <button id="exitGameButton">Exit Game</button>

@@ -24,6 +24,14 @@ Work in progress:
 - Balancing
 
 
+**Playing on mobile (iPhone Safari / Edge, Android):**
+- Hold your phone in landscape.
+- Left thumb (anywhere on the left half): move.
+- Right thumb (anywhere on the right half): aim and shoot. Hold it to keep firing.
+- ⟳ button: reload (tap during a reload for a quick reload). ❚❚ button: pause.
+- For full screen on iPhone: tap Share → "Add to Home Screen" and launch it from there.
+- No sound? Check that the phone's silent switch is off.
+
 **To install locally:**
 Simply download the files html,css and js files and run it in your favorite browser!
 

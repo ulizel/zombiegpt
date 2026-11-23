@@ -118,8 +118,12 @@ body {
     top: 30%;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
     flex-direction: column;
+  }
+
+  /* The game opens on the main menu */
+  #mainMenuOverlay {
+    display: block;
   }
   
   #pauseMenuOverlay button,
@@ -132,3 +136,168 @@ body {
     margin: 5px;
   }
   
+/* =====================================================
+   MOBILE / TOUCH SUPPORT (iPhone Safari, Edge, Chrome)
+   ===================================================== */
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  position: fixed;
+  inset: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+canvas {
+  touch-action: none;
+}
+button {
+  touch-action: manipulation;
+}
+
+/* Menus never overflow a small screen: they scroll instead */
+#instructions,
+#mainMenuOverlay,
+#modesMenuOverlay,
+#pauseMenuOverlay,
+#weaponSelectionOverlay,
+#shopOverlay,
+#testModeMenuOverlay {
+  box-sizing: border-box;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 20px);
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+#mainMenuOverlay,
+#modesMenuOverlay,
+#pauseMenuOverlay,
+#weaponSelectionOverlay,
+#shopOverlay,
+#testModeMenuOverlay {
+  min-width: min(300px, calc(100vw - 20px));
+}
+#gameOverOverlay {
+  height: 100dvh;
+}
+
+.touchOnly { display: none; }
+body.touch .touchOnly { display: block; }
+.mobileHelp { font-size: 13px; color: #333; margin: 0 0 10px; }
+
+/* Bigger, finger-friendly buttons on touch screens */
+body.touch #mainMenuOverlay button,
+body.touch #modesMenuOverlay button,
+body.touch #pauseMenuOverlay button,
+body.touch #shopOverlay button,
+body.touch #testModeMenuOverlay button,
+body.touch #gameOverOverlay button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+  margin: 6px 0;
+}
+body.touch #weaponSelectionOverlay button {
+  min-height: 44px;
+  min-width: 120px;
+  font-size: 15px;
+}
+/* Instructions describe keyboard/mouse; hide them on touch devices */
+body.touch #instructions { display: none !important; }
+
+/* Short landscape phone screens: tighter menus */
+@media (max-height: 500px) {
+  #mainMenuOverlay,
+  #modesMenuOverlay,
+  #pauseMenuOverlay,
+  #weaponSelectionOverlay,
+  #shopOverlay,
+  #testModeMenuOverlay {
+    top: 10px;
+    padding: 10px 16px;
+  }
+  #mainMenuOverlay h1, #gameOverOverlay h1 { font-size: 24px; margin: 4px 0 8px; }
+  #modesMenuOverlay h2, #pauseMenuOverlay h2, #weaponSelectionOverlay h2,
+  #shopOverlay h2, #testModeMenuOverlay h2 { font-size: 20px; margin: 4px 0 8px; }
+  /* Two-column pause menu so every button fits without scrolling */
+  body.touch #pauseMenuOverlay {
+    display: none;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    width: min(520px, calc(100vw - 20px));
+  }
+  body.touch #pauseMenuOverlay h2 { width: 100%; }
+  body.touch #pauseMenuOverlay button { width: calc(50% - 5px); margin: 4px 0; }
+}
+
+/* On-screen controls */
+#touchControls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;   /* touches go to the canvas... */
+  z-index: 50;
+}
+.stick {
+  display: none;
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  margin: -55px 0 0 -55px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+.stick .knob {
+  position: absolute;
+  left: 30px;
+  top: 30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+#aimStick { border-color: rgba(255, 80, 80, 0.7); }
+#aimStick .knob { background: rgba(255, 80, 80, 0.7); }
+.touchButton {
+  position: absolute;
+  pointer-events: auto;   /* ...except the buttons */
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  font-size: 22px;
+  padding: 0;
+}
+#touchPauseButton {
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+}
+#touchReloadButton {
+  bottom: max(16px, env(safe-area-inset-bottom));
+  right: max(16px, env(safe-area-inset-right));
+  font-size: 28px;
+}
+
+#rotateHint {
+  display: none;
+  font-size: 13px;
+  font-weight: bold;
+  color: #a00;
+  margin: 0 0 10px;
+}
+@media (orientation: portrait) and (max-width: 600px) {
+  body.touch #rotateHint { display: block; }
+}
