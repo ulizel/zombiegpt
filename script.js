@@ -9,10 +9,13 @@ document.addEventListener("contextmenu", function (e) {
     let width = canvas.width = window.innerWidth;
     let height = canvas.height = window.innerHeight;
 
-    window.addEventListener('resize', () => {
+    function resizeCanvas() {
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
-    });
+    }
+    window.addEventListener('resize', resizeCanvas);
+    // iOS reports the new size a moment after rotating.
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
 
     // ---------------------
     // AUDIO SETUP (Web Audio API)
@@ -581,7 +584,11 @@ document.addEventListener("contextmenu", function (e) {
             reloadGun();
             reloadRevolver();
         }
-        if (e.key === "Escape") {
+        if (e.key === "Escape") togglePause();
+    });
+
+    function togglePause() {
+        {
             if (gameState === "playing") {
                 gameState = "paused";
                 pauseStartTime = Date.now();
@@ -595,11 +602,12 @@ document.addEventListener("contextmenu", function (e) {
                 document.getElementById("instructions").style.display = "none";
             }
         }
-    });
+    }
 
     document.addEventListener('keyup', (e) => { keys[e.key] = false; });
     canvas.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-    canvas.addEventListener('mousedown', () => {
+    canvas.addEventListener('mousedown', pressFire);
+    function pressFire() {
         mouseDown = true;
         if ((player.weapon === "pistol" || player.weapon === "pistolDouble") && player.reloading) {
             attemptQuickReload();
@@ -611,8 +619,159 @@ document.addEventListener("contextmenu", function (e) {
         ) {
             shootWeapon();
         }
-    });
+    }
     canvas.addEventListener('mouseup', () => { mouseDown = false; });
+
+    // ---------------------
+    // TOUCH CONTROLS (iPhone / iPad / Android)
+    // Left thumb: floating move stick. Right thumb: floating aim stick,
+    // fires while pushed past the dead zone (twin-stick style).
+    // ---------------------
+    const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    let usingTouch = false;
+    const touchMove = { id: null, ox: 0, oy: 0, x: 0, y: 0 };      // x/y: -1..1
+    const touchAim = { id: null, ox: 0, oy: 0, firing: false, lastAuto: 0 };
+    let aimDir = { x: 1, y: 0 };
+    const STICK_RADIUS = 55;
+    const AIM_DEADZONE = 12;
+    const AIM_DISTANCE = 220;
+    const SEMI_AUTO_REPEAT_MS = 280;
+    const moveStickEl = document.getElementById("moveStick");
+    const aimStickEl = document.getElementById("aimStick");
+    const touchControlsEl = document.getElementById("touchControls");
+    if (isTouchDevice) document.body.classList.add("touch");
+
+    function placeStick(el, ox, oy, dx, dy) {
+        el.style.display = "block";
+        el.style.left = ox + "px";
+        el.style.top = oy + "px";
+        el.firstElementChild.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+    function clampToStick(dx, dy) {
+        const len = Math.hypot(dx, dy);
+        if (len > STICK_RADIUS) { dx *= STICK_RADIUS / len; dy *= STICK_RADIUS / len; }
+        return { dx, dy, len: Math.min(len, STICK_RADIUS) };
+    }
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        usingTouch = true;
+        for (const t of e.changedTouches) {
+            if (t.clientX < width / 2 && touchMove.id === null) {
+                touchMove.id = t.identifier;
+                touchMove.ox = t.clientX; touchMove.oy = t.clientY;
+                touchMove.x = touchMove.y = 0;
+                placeStick(moveStickEl, t.clientX, t.clientY, 0, 0);
+            } else if (t.clientX >= width / 2 && touchAim.id === null) {
+                touchAim.id = t.identifier;
+                touchAim.ox = t.clientX; touchAim.oy = t.clientY;
+                touchAim.firing = false;
+                placeStick(aimStickEl, t.clientX, t.clientY, 0, 0);
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (const t of e.changedTouches) {
+            if (t.identifier === touchMove.id) {
+                const c = clampToStick(t.clientX - touchMove.ox, t.clientY - touchMove.oy);
+                touchMove.x = c.dx / STICK_RADIUS;
+                touchMove.y = c.dy / STICK_RADIUS;
+                placeStick(moveStickEl, touchMove.ox, touchMove.oy, c.dx, c.dy);
+            } else if (t.identifier === touchAim.id) {
+                const c = clampToStick(t.clientX - touchAim.ox, t.clientY - touchAim.oy);
+                placeStick(aimStickEl, touchAim.ox, touchAim.oy, c.dx, c.dy);
+                if (c.len > AIM_DEADZONE) {
+                    aimDir = { x: c.dx / c.len, y: c.dy / c.len };
+                    updateTouchAimPoint();
+                    if (!touchAim.firing) {
+                        touchAim.firing = true;
+                        touchAim.lastAuto = Date.now();
+                        pressFire();
+                    }
+                }
+            }
+        }
+    }, { passive: false });
+
+    function endTouches(e) {
+        e.preventDefault();
+        for (const t of e.changedTouches) {
+            if (t.identifier === touchMove.id) {
+                touchMove.id = null;
+                touchMove.x = touchMove.y = 0;
+                moveStickEl.style.display = "none";
+            } else if (t.identifier === touchAim.id) {
+                touchAim.id = null;
+                touchAim.firing = false;
+                mouseDown = false;
+                aimStickEl.style.display = "none";
+            }
+        }
+    }
+    canvas.addEventListener('touchend', endTouches, { passive: false });
+    canvas.addEventListener('touchcancel', endTouches, { passive: false });
+
+    function updateTouchAimPoint() {
+        mouse.x = player.x + aimDir.x * AIM_DISTANCE;
+        mouse.y = player.y + aimDir.y * AIM_DISTANCE;
+    }
+
+    // Called every frame from update() while playing.
+    function updateTouchControls() {
+        if (!usingTouch) return;
+        updateTouchAimPoint();
+        // Semi-automatic weapons: keep firing while the aim stick is held.
+        if (touchAim.firing && !player.reloading &&
+            Date.now() - touchAim.lastAuto >= SEMI_AUTO_REPEAT_MS &&
+            !["machineGun", "flamethrower", "laser", "miniGun"].includes(player.weapon)) {
+            touchAim.lastAuto = Date.now();
+            shootWeapon();
+        }
+    }
+
+    function releaseAllTouches() {
+        touchMove.id = touchAim.id = null;
+        touchMove.x = touchMove.y = 0;
+        touchAim.firing = false;
+        mouseDown = false;
+        moveStickEl.style.display = aimStickEl.style.display = "none";
+    }
+
+    function bindTap(id, fn) {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); fn(); }, { passive: false });
+        el.addEventListener('click', fn);
+    }
+    bindTap("touchReloadButton", () => {
+        if (player.reloading) attemptQuickReload();
+        else if (typeof revolveReloading !== "undefined" && revolveReloading) attemptQuickReloadRevolver();
+        else { reloadGun(); reloadRevolver(); }
+    });
+    bindTap("touchPauseButton", () => { releaseAllTouches(); togglePause(); });
+
+    // Show the on-screen controls only during gameplay.
+    let touchControlsVisible = null;
+    function syncTouchControlsVisibility() {
+        const show = isTouchDevice && gameState === "playing" && !gameOver;
+        if (show !== touchControlsVisible) {
+            touchControlsVisible = show;
+            touchControlsEl.style.display = show ? "block" : "none";
+            if (!show) releaseAllTouches();
+        }
+    }
+
+    // iOS Safari/Edge keep Web Audio suspended until a user gesture.
+    function unlockAudio() {
+        if (audioCtx.state !== "running") audioCtx.resume();
+    }
+    ["touchstart", "touchend", "click", "keydown"].forEach(ev =>
+        document.addEventListener(ev, unlockAudio, { passive: true }));
+
+    // Block pinch-zoom / double-tap zoom gestures on iOS.
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('dblclick', (e) => e.preventDefault());
 
     document.getElementById('restartButton').addEventListener('click', () => { location.reload(); });
 
@@ -623,9 +782,15 @@ document.addEventListener("contextmenu", function (e) {
         gameStartTime = Date.now();
         totalPausedTime = 0;
 
-        if (canvas.requestFullscreen) canvas.requestFullscreen();
-        else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
-        else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
+        // Fullscreen the whole page (not just the canvas) so menus and touch
+        // controls stay visible. iPhone browsers don't support this; there,
+        // "Add to Home Screen" gives a full-screen experience instead.
+        const root = document.documentElement;
+        try {
+            const fs = root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+            const r = fs && fs.call(root);
+            if (r && r.catch) r.catch(() => {});
+        } catch (err) { /* fullscreen not available */ }
 
         gameState = "playing";
         document.getElementById("mainMenuOverlay").style.display = "none";
@@ -2014,9 +2179,10 @@ document.addEventListener("contextmenu", function (e) {
     // HUD
     // ---------------------
     function drawHUD() {
-        const hudMarginLeft = 20;
-        const hudMarginTop = 20;
-        const lineHeight = 24;
+        const compactHud = height < 500 || width < 600;
+        const hudMarginLeft = compactHud ? 10 : 20;
+        const hudMarginTop = compactHud ? 8 : 20;
+        const lineHeight = compactHud ? 15 : 24;
         let lines = [];
         lines.push("Money: $" + player.money);
         lines.push("Lives: " + player.lives);
@@ -2060,7 +2226,7 @@ document.addEventListener("contextmenu", function (e) {
         lines.push("Time: " + elapsedTime + "s");
 
         ctx.save();
-        ctx.font = "20px sans-serif";
+        ctx.font = compactHud ? "13px sans-serif" : "20px sans-serif";
         ctx.fillStyle = "black";
         ctx.textBaseline = "top";
         ctx.textAlign = "left";
@@ -2107,6 +2273,12 @@ document.addEventListener("contextmenu", function (e) {
         if (keys['s'] || keys['ArrowDown']) { player.y += player.speed; moving = true; }
         if (keys['a'] || keys['ArrowLeft']) { player.x -= player.speed; moving = true; }
         if (keys['d'] || keys['ArrowRight']) { player.x += player.speed; moving = true; }
+        if (touchMove.x !== 0 || touchMove.y !== 0) {
+            player.x += touchMove.x * player.speed;
+            player.y += touchMove.y * player.speed;
+            moving = true;
+        }
+        updateTouchControls();
         player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         if (moving) player.walkCycle += 0.15; else player.walkCycle = 0;
         if (player.recoil > 0) player.recoil = Math.max(player.recoil - 1, 0);
@@ -3360,6 +3532,7 @@ document.addEventListener("contextmenu", function (e) {
     }
 
     function gameLoop() {
+        syncTouchControlsVisibility();
         update();
         draw();
         requestAnimationFrame(gameLoop);
